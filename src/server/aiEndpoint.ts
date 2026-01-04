@@ -10,8 +10,19 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 // Initialize database pool; DATABASE_URL is optional if you don't use DB features
 let pool: Pool | null = null;
 if (process.env.DATABASE_URL) {
-  pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  console.log("[aiEndpoint] Database pool initialized");
+  try {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 3000,
+      idleTimeoutMillis: 30000,
+      max: 3,
+      query_timeout: 5000,
+    } as any);
+    console.log("[aiEndpoint] Database pool initialized");
+  } catch (err) {
+    console.error("[aiEndpoint] Failed to init database pool:", err);
+    pool = null;
+  }
 } else {
   console.warn("[aiEndpoint] DATABASE_URL not set; database features will be disabled");
 }
@@ -160,6 +171,9 @@ async function callOpenAIApi(messages: any[]): Promise<string | null> {
     max_tokens: 1000,
   };
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+
   const resp = await fetch(OPENAI_API_ENDPOINT, {
     method: "POST",
     headers: {
@@ -167,7 +181,8 @@ async function callOpenAIApi(messages: any[]): Promise<string | null> {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify(body),
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
 
   if (!resp.ok) {
     const t = await resp.text();
@@ -193,6 +208,7 @@ async function persistConversation(userId: string, userMessage: string, aiRespon
 
 router.post("/respond", async (req, res) => {
   try {
+    console.log("[aiEndpoint] /respond hit");
     const { userId, userMessage, userLevel } = req.body;
     if (!userId || !userMessage) return res.status(400).json({ error: "userId and userMessage are required" });
 

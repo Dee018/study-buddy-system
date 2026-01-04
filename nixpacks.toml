@@ -5,6 +5,7 @@ nixPkgs = ["nodejs_20"]
 [phases.install]
 # Explicitly install devDependencies needed for TypeScript build
 cmds = ["npm install --include=dev"]
+env = { NPM_CONFIG_PRODUCTION = "false", NODE_ENV = "development" }
 
 [phases.build]
 cmds = ["npm run build:server"]
