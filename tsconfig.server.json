@@ -12,7 +12,10 @@
     "strict": false,
     "noImplicitAny": false,
     "jsx": "react-jsx",
-    "module": "ESNext"
+    "module": "ESNext",
+    // Server build emits JS, so disable TS extension imports and Vite types
+    "allowImportingTsExtensions": false,
+    "types": ["node"]
   },
   "include": ["index.ts", "src/server/**/*.ts"],
   "exclude": ["node_modules", "src/**/*.tsx", "src/utils/**", "src/components/**"]
