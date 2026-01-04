@@ -5,7 +5,12 @@ import dotenv from "dotenv";
 // Import router from compiled server folder; paths must align after build
 import aiRouter from "./src/server/aiEndpoint.js";
 
-dotenv.config();
+// Only load .env locally; in Railway/Vercel we rely on platform env
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config();
+} else {
+  console.log("[server] Skipping dotenv in production");
+}
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
