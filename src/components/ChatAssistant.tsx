@@ -123,7 +123,11 @@ What would you like to explore today? Feel free to ask me anything about Java pr
   const generateResponse = async (userMessage: string): Promise<{ response: string; suggestions: string[]; topic: string }> => {
     // Prefer server-side AI endpoint for security (keeps API keys on the server).
     try {
-      const apiBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || '';
+      const apiBaseEnv = (import.meta as any).env?.VITE_API_BASE_URL || '';
+      const inferredBase = (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app'))
+        ? 'https://study-buddy-system-production.up.railway.app'
+        : '';
+      const apiBaseUrl = apiBaseEnv || inferredBase;
       const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/ai/respond` : '/api/ai/respond';
       
       const resp = await fetch(apiUrl, {
