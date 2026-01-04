@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
-import aiRouter from "./aiEndpoint.js";
+// Import router from compiled server folder; paths must align after build
+import aiRouter from "./src/server/aiEndpoint.js";
 
 dotenv.config();
 
