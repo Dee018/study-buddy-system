@@ -288,14 +288,14 @@ export class ProgressSyncManager {
       attempt += 1;
       console.debug(`[ProgressSync] loadProgressAsync attempt ${attempt}/${retries + 1} for user`, userId);
       try {
-        // Select only guaranteed/safe columns to avoid schema-mismatch 400s
+        // Select both JSON progress column AND top-level columns like total_xp, level
         const { data, error } = await supabase
           .from('user_progress')
-          .select('user_id, progress, updated_at')
+          .select('user_id, progress, updated_at, total_xp, current_level, modules_completed, lessons_completed, exercises_completed, projects_completed')
           .eq('user_id', userId)
           .maybeSingle();
 
-        console.debug('[ProgressSync] supabase query executed for user_progress.maybeSingle', { userId, query: { table: 'user_progress', select: 'user_id, progress, updated_at', filter: `user_id=eq.${userId}` } });
+        console.debug('[ProgressSync] supabase query executed for user_progress.maybeSingle', { userId, query: { table: 'user_progress', select: 'user_id, progress, updated_at, total_xp, current_level, ...', filter: `user_id=eq.${userId}` } });
         console.debug('[ProgressSync] supabase response', { data, error });
 
         if (error) {
@@ -333,8 +333,22 @@ export class ProgressSyncManager {
             p.moduleProgress = p.moduleProgress || {};
             p.completedModules = p.completedModules || [];
             p.assessments = p.assessments || [];
-            p.total_xp = p.total_xp ?? 0;
-            p.level = p.level ?? p.current_level ?? 1;
+            
+            // Use top-level columns from database as authoritative source
+            // These are the actual values stored in separate columns, not inside the JSON
+            p.total_xp = row.total_xp ?? p.total_xp ?? 0;
+            p.level = row.current_level ?? p.level ?? p.current_level ?? 1;
+            p.lessons_completed = row.lessons_completed ?? p.lessons_completed ?? 0;
+            p.exercises_completed = row.exercises_completed ?? p.exercises_completed ?? 0;
+            p.projects_completed = row.projects_completed ?? p.projects_completed ?? 0;
+            
+            console.log('[ProgressSync] ✅ Applied top-level columns', {
+              userId,
+              total_xp: p.total_xp,
+              level: p.level,
+              source: 'database columns'
+            });
+            
             for (const [k, v] of Object.entries(p.dailyActivity || {})) {
               if (v && typeof v === 'object' && !('date' in (v as any))) (v as any).date = k;
             }

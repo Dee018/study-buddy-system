@@ -223,16 +223,37 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!progressContext) return;
+    if (!progressContext) {
+      console.warn('[App] Progress sync: No progressContext');
+      return;
+    }
     try {
       const newPoints = Number(progressContext.totalXP || 0);
       const newLevel = progressContext.level || 1;
+      console.log('[App] Progress sync effect triggered', { 
+        contextTotalXP: progressContext.totalXP, 
+        newPoints, 
+        newLevel 
+      });
       setUserData(prev => {
-        if (!prev) return prev;
+        if (!prev) {
+          console.warn('[App] Progress sync: No prev userData');
+          return prev;
+        }
         const mappedLevel = mapLevelLabel(newLevel) || (prev.level || 'Beginner');
+        console.log('[App] Progress sync comparison', { 
+          prevPoints: prev.points, 
+          newPoints, 
+          prevLevel: prev.level, 
+          mappedLevel,
+          shouldUpdate: (prev.points || 0) !== newPoints || prev.level !== mappedLevel
+        });
         // Always update if values changed to ensure display stays in sync
-        if ((prev.points || 0) === newPoints && prev.level === mappedLevel) return prev;
-        console.debug('[App] Syncing progress to userData', { newPoints, mappedLevel });
+        if ((prev.points || 0) === newPoints && prev.level === mappedLevel) {
+          console.log('[App] Progress sync: Values unchanged, skipping update');
+          return prev;
+        }
+        console.log('[App] ✅ Syncing progress to userData', { newPoints, mappedLevel });
         return {
           ...prev,
           points: newPoints,
@@ -473,6 +494,11 @@ export default function App() {
 
           // Compute a safe level and points based on hydrated progress
           const userProgressForLocal = progress || { completedModules: [], total_xp: 0 } as any;
+          console.log('[Bootstrap] Progress data loaded', { 
+            hasProgress: !!progress,
+            total_xp: userProgressForLocal.total_xp,
+            completedModules: userProgressForLocal.completedModules?.length || 0
+          });
           let currentLevel = 'Beginner';
           let tempLevel = currentLevel; let iterations = 0; const MAX_ITERATIONS = 3;
           let newLevel = shouldLevelUp(tempLevel, userProgressForLocal);
@@ -481,6 +507,11 @@ export default function App() {
 
           // Use actual total_xp from progress data instead of calculated value
           const actualTotalXP = userProgressForLocal.total_xp ?? 0;
+          console.log('[Bootstrap] Setting initial userData', { 
+            actualTotalXP,
+            currentLevel,
+            userId 
+          });
 
           setUserData({
             id: userId,

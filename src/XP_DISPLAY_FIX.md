@@ -6,7 +6,34 @@ The XP display in the top navigation bar was showing incorrect values (100) whil
 
 ## Root Causes Identified
 
-### 1. **Incorrect Initial Points Calculation (Bootstrap)**
+### 1. **Critical: Database Query Missing total_xp Column** ⚠️
+
+**Location:** [progressSyncManager.ts](utils/progressSyncManager.ts#L294)
+
+**Issue:** The `loadProgressAsync` function was only selecting `'user_id, progress, updated_at'` from the database, but NOT the `total_xp` column. The `user_progress` table has `total_xp` as a separate INTEGER column (see schema), but the query wasn't fetching it.
+
+This meant:
+
+- Database had `total_xp = 200` ✅
+- Query returned: `{ user_id, progress: {...}, updated_at }` (no total_xp)
+- Code tried to read `progress.total_xp` but it wasn't in the JSON
+- Defaulted to `total_xp = 0` ❌
+
+**Fix:** Updated the SELECT to include all relevant columns:
+
+```typescript
+.select('user_id, progress, updated_at, total_xp, current_level, modules_completed, lessons_completed, exercises_completed, projects_completed')
+```
+
+And updated the parsing logic to prioritize database columns over JSON:
+
+```typescript
+// Use top-level columns from database as authoritative source
+p.total_xp = row.total_xp ?? p.total_xp ?? 0;
+p.level = row.current_level ?? p.level ?? 1;
+```
+
+### 2. **Incorrect Initial Points Calculation (Bootstrap)**
 
 **Location:** [App.tsx](App.tsx#L481)
 
@@ -25,7 +52,7 @@ const actualTotalXP = userProgressForLocal.total_xp ?? 0;
 points: actualTotalXP;
 ```
 
-### 2. **Stale Closure in Progress Sync Effect**
+### 3. **Stale Closure in Progress Sync Effect**
 
 **Location:** [App.tsx](App.tsx#L223-L240)
 
@@ -52,7 +79,7 @@ useEffect(() => {
 }, [progressContext?.totalXP, progressContext?.level]);
 ```
 
-### 3. **Broken refreshUserPoints Function**
+### 4. **Broken refreshUserPoints Function**
 
 **Location:** [App.tsx](App.tsx#L161-L183)
 
