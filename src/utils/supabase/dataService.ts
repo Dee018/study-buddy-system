@@ -1032,15 +1032,25 @@ export class ProgressService {
         .eq('user_id', userId)
         .maybeSingle();
 
+      console.log('[ProgressService] 🔍 getUserProgress raw data from DB:', {
+        userId,
+        hasData: !!data,
+        total_xp: data?.total_xp,
+        current_level: data?.current_level,
+        rawData: data
+      });
+
       if (error) {
         throw error;
       }
 
       if (!data) {
         // No progress found - create initial progress
+        console.log('[ProgressService] No progress found, initializing...');
         return await this.initializeUserProgress(userId);
       }
 
+      console.log('[ProgressService] ✅ Returning progress with total_xp:', (data as any).total_xp);
       return data as any;
     } catch (error) {
       console.error('Get user progress error:', error);

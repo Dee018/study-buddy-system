@@ -190,6 +190,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           }
 
           // Update React state immediately
+          console.log('[ProgressContext] 🔍 About to set state from progressRow', {
+            parsed_total_xp: parsed.total_xp,
+            progressRow_total_xp: (progressRow as any).total_xp,
+            final_value: parsed.total_xp ?? 0,
+            userId: user.id
+          });
           setUserProgress(parsed as any);
           setModuleProgress(parsed.moduleProgress || {});
           setDailyActivity(parsed.dailyActivity ? Object.values(parsed.dailyActivity) : []);
@@ -197,7 +203,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           setLevel(parsed.level ?? 1);
           setCurrentStreak(parsed.currentStreak ?? null);
 
-          console.log('Progress hydrated', parsed);
+          console.log('[ProgressContext] ✅ Progress hydrated - totalXP set to:', parsed.total_xp ?? 0, parsed);
         } else {
           // No server row returned — initialize via service and build a module-scoped
           // progress object using the canonical course modules list so UI can safely
@@ -254,10 +260,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           },
           (payload) => {
             // Progress updated (silent)
+            console.log('[ProgressContext] 🔔 Realtime update received:', {
+              event: payload.eventType,
+              total_xp: (payload.new as any)?.total_xp,
+              payload: payload.new
+            });
             if (payload.new) {
               setUserProgress(payload.new as any);
               setTotalXP((payload.new as any).total_xp);
               setLevel((payload.new as any).level);
+              console.log('[ProgressContext] ✅ Realtime: totalXP updated to:', (payload.new as any).total_xp);
             }
           }
         )
@@ -649,6 +661,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     refreshProgress,
     clearError,
   };
+  
+  // Log whenever totalXP changes
+  React.useEffect(() => {
+    console.log('[ProgressContext] 📊 totalXP state changed:', totalXP);
+  }, [totalXP]);
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }
