@@ -160,26 +160,28 @@ export default function App() {
 
   const refreshUserPoints = useCallback(() => {
     try {
-      if (!userData || !userData.id) {
-        console.error('No user data for points refresh');
+      // Use progressContext as the source of truth for XP
+      if (!progressContext) {
+        console.debug('[App] refreshUserPoints: No progressContext available');
         return;
       }
-      const calculatedPoints = XPSystem.calculateTotalPoints(userData.id);
-      if (typeof calculatedPoints !== 'number' || !isFinite(calculatedPoints)) {
-        console.error('Invalid calculated points:', calculatedPoints);
+      const actualPoints = Number(progressContext.totalXP || 0);
+      if (typeof actualPoints !== 'number' || !isFinite(actualPoints)) {
+        console.error('Invalid points from progressContext:', actualPoints);
         return;
       }
+      console.debug('[App] refreshUserPoints: Updating to', actualPoints);
       setUserData(prevUserData => {
         if (!prevUserData) return prevUserData;
         return {
           ...prevUserData,
-          points: calculatedPoints
+          points: actualPoints
         };
       });
     } catch (error) {
       console.error('Error refreshing user points:', error);
     }
-  }, [userData]);
+  }, [progressContext]);
 
   // Sync progress context totals into top-level `userData` so legacy components
   // that read `userData.points` or `userData.level` show fresh values.
@@ -221,23 +223,26 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!progressContext || !userData) return;
+    if (!progressContext) return;
     try {
       const newPoints = Number(progressContext.totalXP || 0);
-      const newLevel = mapLevelLabel(progressContext.level) || (userData.level || 'Beginner');
+      const newLevel = progressContext.level || 1;
       setUserData(prev => {
         if (!prev) return prev;
-        if ((prev.points || 0) === newPoints && prev.level === newLevel) return prev;
+        const mappedLevel = mapLevelLabel(newLevel) || (prev.level || 'Beginner');
+        // Always update if values changed to ensure display stays in sync
+        if ((prev.points || 0) === newPoints && prev.level === mappedLevel) return prev;
+        console.debug('[App] Syncing progress to userData', { newPoints, mappedLevel });
         return {
           ...prev,
           points: newPoints,
-          level: newLevel,
+          level: mappedLevel,
         };
       });
     } catch (e) {
       console.warn('Failed to sync progress into userData', e);
     }
-  }, [progressContext?.totalXP, progressContext?.level, userData]);
+  }, [progressContext?.totalXP, progressContext?.level]);
 
   // Listen for immediate XP awards emitted by ProgressSyncManager to show
   // XP popups without a full page reload. Event detail: { userId, xp, sourceType, sourceId, title? }
@@ -467,18 +472,21 @@ export default function App() {
           }
 
           // Compute a safe level and points based on hydrated progress
-          const userProgressForLocal = progress || { completedModules: [] } as any;
+          const userProgressForLocal = progress || { completedModules: [], total_xp: 0 } as any;
           let currentLevel = 'Beginner';
           let tempLevel = currentLevel; let iterations = 0; const MAX_ITERATIONS = 3;
           let newLevel = shouldLevelUp(tempLevel, userProgressForLocal);
           while (newLevel && iterations < MAX_ITERATIONS) { tempLevel = newLevel; newLevel = shouldLevelUp(tempLevel, userProgressForLocal); iterations++; }
           currentLevel = tempLevel;
 
+          // Use actual total_xp from progress data instead of calculated value
+          const actualTotalXP = userProgressForLocal.total_xp ?? 0;
+
           setUserData({
             id: userId,
             username: (profileRow && (profileRow as any).username) || session.user.email || 'Learner',
             level: currentLevel,
-            points: ((userProgressForLocal.completedModules || []).length * 150),
+            points: actualTotalXP,
             isNewUser: ((userProgressForLocal.completedModules || []).length === 0)
           });
 
