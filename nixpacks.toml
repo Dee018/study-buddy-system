@@ -1,5 +1,6 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm"]
+# nodejs_20 includes npm; no need to list npm separately
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = ["npm install"]
@@ -8,4 +9,5 @@ cmds = ["npm install"]
 cmds = ["npm run build:server"]
 
 [start]
+# build already ran in build phase; just start the compiled server
 cmd = "npm run start:server"
