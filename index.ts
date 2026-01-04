@@ -8,7 +8,7 @@ import aiRouter from "./src/server/aiEndpoint.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT || 8080);
 
 console.log("[server] Starting server with PORT:", PORT);
 console.log("[server] OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "✓ set" : "✗ not set");
@@ -26,7 +26,7 @@ app.get("/api/health", (req, res) => {
   res.json({ ok: true });
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`[server] StudyBuddy server running on port ${PORT}`);
-  console.log(`[server] Ready to accept requests at http://localhost:${PORT}`);
+  console.log(`[server] Ready to accept requests at http://0.0.0.0:${PORT}`);
 });
