@@ -23,6 +23,14 @@ app.use(cors());
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Debug middleware to log incoming requests
+app.use((req, res, next) => {
+  console.log(`[server] ${req.method} ${req.path}`);
+  console.log("[server] headers:", req.headers);
+  console.log("[server] body:", req.body);
+  next();
+});
+
 app.use("/api/ai", aiRouter);
 console.log("[server] Mounted /api/ai router");
 
