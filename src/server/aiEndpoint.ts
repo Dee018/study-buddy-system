@@ -7,7 +7,14 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API
 const OPENAI_API_ENDPOINT = process.env.OPENAI_API_ENDPOINT || "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Initialize database pool; DATABASE_URL is optional if you don't use DB features
+let pool: Pool | null = null;
+if (process.env.DATABASE_URL) {
+  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  console.log("[aiEndpoint] Database pool initialized");
+} else {
+  console.warn("[aiEndpoint] DATABASE_URL not set; database features will be disabled");
+}
 
 type LearningProfile = {
   knowledgeAreas: { [key: string]: number };
@@ -75,6 +82,7 @@ function generateSuggestions(topic: string, profile: LearningProfile): string[] 
 
 async function fetchLearningProfile(userId: string): Promise<LearningProfile> {
   try {
+    if (!pool) return defaultLearningProfile();
     const { rows } = await pool.query("SELECT profile_data FROM learning_profiles WHERE user_id = $1 LIMIT 1", [userId]);
     if (!rows || rows.length === 0) return defaultLearningProfile();
     const row = rows[0];
@@ -88,6 +96,7 @@ async function fetchLearningProfile(userId: string): Promise<LearningProfile> {
 
 async function fetchRecentActivities(userId: string) {
   try {
+    if (!pool) return [];
     const { rows } = await pool.query(
       "SELECT type, metadata, created_at FROM user_activities WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10",
       [userId],
@@ -101,6 +110,7 @@ async function fetchRecentActivities(userId: string) {
 
 async function fetchAssessments(userId: string) {
   try {
+    if (!pool) return [];
     const { rows } = await pool.query(
       "SELECT assessment_name, score, details, taken_at FROM assessments WHERE user_id = $1 ORDER BY taken_at DESC LIMIT 5",
       [userId],
@@ -114,6 +124,7 @@ async function fetchAssessments(userId: string) {
 
 async function fetchConversationHistory(userId: string) {
   try {
+    if (!pool) return [];
     const { rows } = await pool.query(
       "SELECT message_id, user_message, ai_response, topic, timestamp FROM conversations WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 10",
       [userId],
@@ -170,6 +181,7 @@ async function callOpenAIApi(messages: any[]): Promise<string | null> {
 
 async function persistConversation(userId: string, userMessage: string, aiResponse: string, topic: string) {
   try {
+    if (!pool) return; // Skip if no database
     await pool.query(
       `INSERT INTO conversations (user_id, user_message, ai_response, topic, timestamp) VALUES ($1, $2, $3, $4, now())`,
       [userId, userMessage, aiResponse, topic],

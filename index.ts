@@ -10,15 +10,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+console.log("[server] Starting server with PORT:", PORT);
+console.log("[server] OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "✓ set" : "✗ not set");
+console.log("[server] DATABASE_URL:", process.env.DATABASE_URL ? "✓ set" : "✗ not set");
+
 app.use(cors());
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use("/api/ai", aiRouter);
+console.log("[server] Mounted /api/ai router");
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => {
+  console.log("[server] Health check requested");
+  res.json({ ok: true });
+});
 
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`StudyBuddy server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`[server] StudyBuddy server running on port ${PORT}`);
+  console.log(`[server] Ready to accept requests at http://localhost:${PORT}`);
 });
