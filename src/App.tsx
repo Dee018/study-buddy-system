@@ -223,17 +223,31 @@ export default function App() {
   };
 
   useEffect(() => {
+    console.log('[App] 🔄 Progress sync effect check', {
+      hasProgressContext: !!progressContext,
+      totalXP: progressContext?.totalXP,
+      level: progressContext?.level,
+      hasUserData: !!userData
+    });
+    
     if (!progressContext) {
       console.warn('[App] Progress sync: No progressContext');
       return;
     }
+    
+    if (!userData) {
+      console.warn('[App] Progress sync: No userData yet');
+      return;
+    }
+    
     try {
       const newPoints = Number(progressContext.totalXP || 0);
       const newLevel = progressContext.level || 1;
       console.log('[App] Progress sync effect triggered', { 
         contextTotalXP: progressContext.totalXP, 
         newPoints, 
-        newLevel 
+        newLevel,
+        currentUserDataPoints: userData.points
       });
       setUserData(prev => {
         if (!prev) {
@@ -263,7 +277,18 @@ export default function App() {
     } catch (e) {
       console.warn('Failed to sync progress into userData', e);
     }
-  }, [progressContext?.totalXP, progressContext?.level]);
+  }, [progressContext, progressContext?.totalXP, progressContext?.level, userData?.id]);
+
+  // Debug: Log whenever userData.points changes
+  useEffect(() => {
+    if (userData) {
+      console.log('[App] 💾 userData.points changed:', {
+        points: userData.points,
+        level: userData.level,
+        id: userData.id
+      });
+    }
+  }, [userData?.points, userData?.level]);
 
   // Listen for immediate XP awards emitted by ProgressSyncManager to show
   // XP popups without a full page reload. Event detail: { userId, xp, sourceType, sourceId, title? }
@@ -519,6 +544,20 @@ export default function App() {
             level: currentLevel,
             points: actualTotalXP,
             isNewUser: ((userProgressForLocal.completedModules || []).length === 0)
+
+                    // Force a sync with progressContext after a short delay to ensure we get the latest value
+                    setTimeout(() => {
+                      if (progressContext && progressContext.totalXP !== undefined) {
+                        console.log('[Bootstrap] 🔄 Force syncing with progressContext', {
+                          bootstrapPoints: actualTotalXP,
+                          contextPoints: progressContext.totalXP,
+                          willUpdate: progressContext.totalXP !== actualTotalXP
+                        });
+                        if (progressContext.totalXP !== actualTotalXP) {
+                          setUserData(prev => prev ? { ...prev, points: progressContext.totalXP } : prev);
+                        }
+                      }
+                    }, 500);
           });
 
           setIsAdmin(((profileRow as any)?.is_admin === true) || ((profileRow as any)?.role === 'admin') || false);
