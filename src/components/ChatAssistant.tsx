@@ -124,11 +124,23 @@ What would you like to explore today? Feel free to ask me anything about Java pr
     // Prefer server-side AI endpoint for security (keeps API keys on the server).
     try {
       const apiBaseEnv = (import.meta as any).env?.VITE_API_BASE_URL || '';
-      const inferredBase = (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app'))
-        ? 'https://study-buddy-system-production.up.railway.app'
-        : '';
-      const apiBaseUrl = apiBaseEnv || inferredBase;
-      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/ai/respond` : '/api/ai/respond';
+      const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+      const railwayUrl = 'https://study-buddy-system-production.up.railway.app';
+      
+      let apiUrl = '/api/ai/respond'; // default fallback
+      
+      if (apiBaseEnv) {
+        // Use env var if set
+        apiUrl = `${apiBaseEnv}/api/ai/respond`;
+        console.log('[ChatAssistant] Using VITE_API_BASE_URL:', apiUrl);
+      } else if (isVercel) {
+        // On Vercel, use Railway backend
+        apiUrl = `${railwayUrl}/api/ai/respond`;
+        console.log('[ChatAssistant] On Vercel, using Railway:', apiUrl);
+      } else {
+        // Local development, use relative URL
+        console.log('[ChatAssistant] Using relative URL:', apiUrl);
+      }
       
       const resp = await fetch(apiUrl, {
         method: 'POST',
