@@ -123,7 +123,10 @@ What would you like to explore today? Feel free to ask me anything about Java pr
   const generateResponse = async (userMessage: string): Promise<{ response: string; suggestions: string[]; topic: string }> => {
     // Prefer server-side AI endpoint for security (keeps API keys on the server).
     try {
-      const resp = await fetch('/api/ai/respond', {
+      const apiBaseUrl = (import.meta as any).env.VITE_API_BASE_URL || '';
+      const apiUrl = apiBaseUrl ? `${apiBaseUrl}/api/ai/respond` : '/api/ai/respond';
+      
+      const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, userMessage, userLevel })
