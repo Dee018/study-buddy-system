@@ -111,11 +111,11 @@ export function AppProviders({ children }: AppProvidersProps) {
             <ThemeProvider>
               <ProgressProvider>
                 <CertificateProvider>
-                  <AnalyticsProvider>
-                    <CurriculumProvider>
+                  <CurriculumProvider>
+                    <AnalyticsProvider>
                       {children}
-                    </CurriculumProvider>
-                  </AnalyticsProvider>
+                    </AnalyticsProvider>
+                  </CurriculumProvider>
                 </CertificateProvider>
               </ProgressProvider>
             </ThemeProvider>
