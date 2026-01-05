@@ -158,7 +158,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       // Load user progress via ProgressService (authoritative and schema-aware)
       try {
         console.debug('[ProgressContext] requesting ProgressService.getUserProgress', { userId: user.id });
-        const progressRow = await ProgressService.getUserProgress(user.id);
+        let progressRow = await ProgressService.getUserProgress(user.id);
         console.debug('[ProgressContext] ProgressService.getUserProgress response', { userId: user.id, progressRow });
 
         // Check if we need to recalculate XP from transactions (auto-fix corrupted data)
@@ -175,7 +175,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
             const fixedProgressRow = await ProgressService.getUserProgress(user.id);
             console.log('[ProgressContext] ✅ XP fixed! Reloaded progress with corrected total_xp:', (fixedProgressRow as any)?.total_xp);
             if (fixedProgressRow) {
-              (progressRow as any) = fixedProgressRow;
+              progressRow = fixedProgressRow;
             }
           }
         } catch (recalcErr) {
