@@ -62,7 +62,7 @@ export interface ProgressContextType {
 // CONTEXT
 // ============================================================================
 
-const ProgressContext = createContext<ProgressContextType | null>(null);
+export const ProgressContext = createContext<ProgressContextType | null>(null);
 
 // ============================================================================
 // PROVIDER

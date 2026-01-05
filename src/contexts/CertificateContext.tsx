@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from './AuthContext';
-import { useProgress } from './ProgressContext';
+import { ProgressContext } from './ProgressContext';
 
 // ============================================================================
 // TYPES
@@ -83,19 +83,9 @@ const CertificateContext = createContext<CertificateContextType | null>(null);
 
 export function CertificateProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
-  
-  // Use try-catch to handle potential useProgress initialization issues
-  let userProgress: any = null;
-  let moduleProgress: any = null;
-  
-  try {
-    const progressContext = useProgress();
-    userProgress = progressContext?.userProgress;
-    moduleProgress = progressContext?.moduleProgress;
-  } catch (e) {
-    // If ProgressProvider is not initialized yet, continue without it
-    console.debug('[CertificateProvider] ProgressContext not ready yet', e);
-  }
+  const progressContext = useContext(ProgressContext);
+  const userProgress = progressContext?.userProgress;
+  const moduleProgress = progressContext?.moduleProgress;
 
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(false);
