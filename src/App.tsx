@@ -115,21 +115,14 @@ export default function App() {
         console.error('Invalid reward data');
         return;
       }
-      const newPoints = (userData.points || 0) + reward.amount;
-      if (!isFinite(newPoints)) {
-        console.error('Invalid points calculation');
-        return;
-      }
-      setUserData({
-        ...userData,
-        level: newLevel,
-        points: newPoints
-      });
+      // Do not mutate userData.points directly; ProgressContext is source of truth
+      // Just show popup and refresh from context
+      refreshUserPoints();
       setXpPopup({ show: true, points: reward.amount, title: reward.title });
     } catch (error) {
       console.error('Error handling level up:', error);
     }
-  }, [userData]);
+  }, [userData, refreshUserPoints]);
 
   const handleXPEarned = useCallback((points: number, title: string) => {
     try {
@@ -141,22 +134,15 @@ export default function App() {
         console.error('Invalid points value:', points);
         return;
       }
-      const newPoints = (userData.points || 0) + points;
-      if (!isFinite(newPoints)) {
-        console.error('Invalid points calculation');
-        return;
-      }
-      setUserData({
-        ...userData,
-        points: newPoints
-      });
+      // Do not mutate userData.points directly; refresh from ProgressContext instead
+      refreshUserPoints();
       const timestamp = Date.now();
       const uniqueKey = `${userData.id}_${title.replace(/\s+/g, '_')}_${timestamp}`;
       setXpPopup({ show: true, points, title: title || 'XP Earned', uniqueKey });
     } catch (error) {
       console.error('Error handling XP earned:', error);
     }
-  }, [userData]);
+  }, [userData, refreshUserPoints]);
 
   const refreshUserPoints = useCallback(() => {
     try {
@@ -300,11 +286,9 @@ export default function App() {
         const title = d.title || (d.sourceType ? `+${points} XP` : 'XP Earned');
         const uid = d.userId;
 
+        // Do not mutate userData.points; ProgressContext handles authoritative XP
         if (uid && userData && userData.id === uid) {
-          setUserData(prev => {
-            if (!prev) return prev;
-            return { ...prev, points: (prev.points || 0) + points };
-          });
+          refreshUserPoints();
         }
 
         const uniqueKey = `${uid || 'anon'}_${title.replace(/\s+/g, '_')}_${Date.now()}`;
@@ -314,7 +298,7 @@ export default function App() {
 
     window.addEventListener('xpAwarded', handler as EventListener);
     return () => window.removeEventListener('xpAwarded', handler as EventListener);
-  }, [userData]);
+  }, [userData, refreshUserPoints]);
 
   // Close nav menu when clicking outside or pressing Escape
   useEffect(() => {
@@ -544,21 +528,21 @@ export default function App() {
             level: currentLevel,
             points: actualTotalXP,
             isNewUser: ((userProgressForLocal.completedModules || []).length === 0)
-
-                    // Force a sync with progressContext after a short delay to ensure we get the latest value
-                    setTimeout(() => {
-                      if (progressContext && progressContext.totalXP !== undefined) {
-                        console.log('[Bootstrap] 🔄 Force syncing with progressContext', {
-                          bootstrapPoints: actualTotalXP,
-                          contextPoints: progressContext.totalXP,
-                          willUpdate: progressContext.totalXP !== actualTotalXP
-                        });
-                        if (progressContext.totalXP !== actualTotalXP) {
-                          setUserData(prev => prev ? { ...prev, points: progressContext.totalXP } : prev);
-                        }
-                      }
-                    }, 500);
           });
+
+          // Force a sync with progressContext after a short delay to ensure we get the latest value
+          setTimeout(() => {
+            if (progressContext && progressContext.totalXP !== undefined) {
+              console.log('[Bootstrap] 🔄 Force syncing with progressContext', {
+                bootstrapPoints: actualTotalXP,
+                contextPoints: progressContext.totalXP,
+                willUpdate: progressContext.totalXP !== actualTotalXP
+              });
+              if (progressContext.totalXP !== actualTotalXP) {
+                setUserData(prev => prev ? { ...prev, points: progressContext.totalXP } : prev);
+              }
+            }
+          }, 500);
 
           setIsAdmin(((profileRow as any)?.is_admin === true) || ((profileRow as any)?.role === 'admin') || false);
           // If a post-reload navigation state was saved, restore it now so the
@@ -974,7 +958,12 @@ export default function App() {
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                   <div className="hidden lg:flex items-center space-x-2">
                     <Badge className="px-2 py-1 text-xs whitespace-nowrap">
-                      ✨ {(typeof userData.points === 'number' && isFinite(userData.points)) ? userData.points.toLocaleString() : '0'}
+                      {(() => {
+                        const xp = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
+                          ? progressContext.totalXP
+                          : (typeof userData?.points === 'number' && isFinite(userData.points) ? userData.points : 0);
+                        return `✨ ${xp.toLocaleString()}`;
+                      })()}
                     </Badge>
                     <div className="relative">
                       <Badge className="px-2 py-1 text-xs bg-gradient-to-r from-primary to-primary/80 shadow-sm whitespace-nowrap">
@@ -1090,7 +1079,12 @@ export default function App() {
                 </div>
                 <div className="relative z-10 flex items-center space-x-1.5">
                   <Badge className="px-2 py-0.5 text-xs flex-shrink-0 bg-white/90 text-primary border-white">
-                    ✨ {(typeof userData.points === 'number' && isFinite(userData.points)) ? userData.points.toLocaleString() : '0'}
+                    {(() => {
+                      const xp = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
+                        ? progressContext.totalXP
+                        : (typeof userData?.points === 'number' && isFinite(userData.points) ? userData.points : 0);
+                      return `✨ ${xp.toLocaleString()}`;
+                    })()}
                   </Badge>
                   <Badge className="px-2 py-0.5 text-xs gradient-bg-gold flex-shrink-0 border-2 border-white/50">
                     {userData.level === 'Beginner' && '🌱'}
@@ -1305,7 +1299,7 @@ export default function App() {
             <LearningHub
               onNavigate={handleNavigation}
               userLevel={userData.level || 'Beginner'}
-              userPoints={userData.points || 0}
+              userPoints={(typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP)) ? progressContext.totalXP : (userData.points || 0)}
               username={userData.username}
               isNewUser={userData.isNewUser}
               userId={userData.id}
