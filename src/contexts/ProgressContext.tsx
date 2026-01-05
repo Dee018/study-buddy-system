@@ -8,7 +8,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ProgressService } from '../utils/supabase/dataService';
 import { XPService } from '../utils/supabase/dataService';
-import ContentManager from '../utils/contentManager';
 import { useAuth } from './AuthContext';
 import type {
   UserProgress,
@@ -233,7 +232,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           const init = await ProgressService.initializeUserProgress(user.id);
           console.debug('[ProgressContext] initializeUserProgress result', { init });
           // Build user progress merged with any hydrated/init row and full module list
-          const allModules = ContentManager.getAllModules();
+          // Note: ContentManager import removed to prevent circular dependency
+          const allModules: any[] = [];
           const userProgress = initializeUserProgress(allModules, init as any);
           setUserProgress(userProgress as any);
           setModuleProgress(userProgress.moduleProgress || {});
