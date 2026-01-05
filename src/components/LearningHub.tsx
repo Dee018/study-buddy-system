@@ -13,6 +13,7 @@ import ContentManager from '../utils/contentManager';
 import { ProgressManager, DailyActivity } from '../utils/progressManager';
 import { ProgressSyncManager } from '../utils/progressSyncManager';
 import { useProgressSync, useCompletionStats } from '../utils/useProgressSync';
+import { useProgress } from '../contexts/ProgressContext';
 import { StudyBuddyLogo } from './StudyBuddyLogo';
 import { EnhancedLearningModule } from './EnhancedLearningModule';
 import { LessonView } from './LessonView';
@@ -56,6 +57,22 @@ interface LearningHubProps {
 }
 
 export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = '', isNewUser: propIsNewUser, userId, onUserLevelUp, onXPEarned, onPointsRefresh, navigationData }: LearningHubProps) {
+  // Get XP from ProgressContext (single source of truth from user_progress table)
+  const progressContext = useProgress();
+  const actualUserPoints = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
+    ? progressContext.totalXP
+    : (typeof userPoints === 'number' && isFinite(userPoints) ? userPoints : 0);
+
+  // Debug: Log XP values
+  useEffect(() => {
+    console.log('[LearningHub] XP values:', {
+      contextTotalXP: progressContext?.totalXP,
+      propUserPoints: userPoints,
+      actualUserPoints,
+      userId
+    });
+  }, [progressContext?.totalXP, userPoints, actualUserPoints, userId]);
+
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [selectedEnhancedModule, setSelectedEnhancedModule] = useState<DetailedModule | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
@@ -459,10 +476,10 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
 
   // Check if user is new (has no progress)
   useEffect(() => {
-    // Use prop value if provided, otherwise check if user is new based on level and points
-    const isNew = propIsNewUser !== undefined ? propIsNewUser : (userLevel === 'Beginner' && userPoints === 0);
+    // Use prop value if provided, otherwise check if user is new based on level and points from ProgressContext
+    const isNew = propIsNewUser !== undefined ? propIsNewUser : (userLevel === 'Beginner' && actualUserPoints === 0);
     setIsNewUser(isNew);
-  }, [userLevel, userPoints, propIsNewUser]);
+  }, [userLevel, actualUserPoints, propIsNewUser]);
 
   // Check if user can access a module based on their level and progress
   const _canAccessModule = (module: Module) => {
