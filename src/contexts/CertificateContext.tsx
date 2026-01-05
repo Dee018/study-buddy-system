@@ -9,7 +9,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from './AuthContext';
-import { ProgressContext } from './ProgressContext';
 
 // ============================================================================
 // TYPES
@@ -83,9 +82,6 @@ const CertificateContext = createContext<CertificateContextType | null>(null);
 
 export function CertificateProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
-  const progressContext = useContext(ProgressContext);
-  const userProgress = progressContext?.userProgress;
-  const moduleProgress = progressContext?.moduleProgress;
 
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -488,13 +484,13 @@ export function CertificateProvider({ children }: { children: ReactNode }) {
       undefined,
       {
         track_name: trackName,
-        total_xp: userProgress?.total_xp || 0,
-        level: userProgress?.level || 1,
+        total_xp: 0, // Will be populated by components that have access to ProgressContext
+        level: 1,
       }
     );
 
     return certificate;
-  }, [userProgress, generateCertificate]);
+  }, [generateCertificate]);
 
   /**
    * Clear error state
