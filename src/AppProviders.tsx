@@ -3,6 +3,7 @@
  * 
  * Wraps the entire application with all context providers
  * Ensures proper provider hierarchy and initialization
+ * v2.0 - Fixed circular dependency
  */
 
 import React, { ReactNode, useEffect } from 'react';
