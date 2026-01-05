@@ -890,6 +890,12 @@ export default function App() {
     );
   }
 
+  const resolvedXP = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
+    ? progressContext.totalXP
+    : (typeof userData?.points === 'number' && isFinite(userData.points) ? userData.points : 0);
+
+  const compactResolvedXP = resolvedXP > 999 ? `${Math.floor(resolvedXP / 1000)}k` : resolvedXP.toLocaleString();
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-background">
@@ -958,12 +964,7 @@ export default function App() {
                 <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                   <div className="hidden lg:flex items-center space-x-2">
                     <Badge className="px-2 py-1 text-xs whitespace-nowrap">
-                      {(() => {
-                        const xp = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
-                          ? progressContext.totalXP
-                          : (typeof userData?.points === 'number' && isFinite(userData.points) ? userData.points : 0);
-                        return `✨ ${xp.toLocaleString()}`;
-                      })()}
+                      ✨ {resolvedXP.toLocaleString()}
                     </Badge>
                     <div className="relative">
                       <Badge className="px-2 py-1 text-xs bg-gradient-to-r from-primary to-primary/80 shadow-sm whitespace-nowrap">
@@ -979,10 +980,7 @@ export default function App() {
                   </div>
                   <div className="lg:hidden flex items-center space-x-1">
                     <Badge className="px-1.5 py-0.5 text-xs">
-                      ✨ {(() => {
-                        const points = typeof userData.points === 'number' && isFinite(userData.points) ? userData.points : 0;
-                        return points > 999 ? `${Math.floor(points / 1000)}k` : points.toLocaleString();
-                      })()}
+                      ✨ {compactResolvedXP}
                     </Badge>
                     <Badge className="px-1.5 py-0.5 text-xs bg-gradient-to-r from-primary to-primary/80">
                       {userData.level === 'Beginner' && '🌱'}
@@ -1079,12 +1077,7 @@ export default function App() {
                 </div>
                 <div className="relative z-10 flex items-center space-x-1.5">
                   <Badge className="px-2 py-0.5 text-xs flex-shrink-0 bg-white/90 text-primary border-white">
-                    {(() => {
-                      const xp = (typeof progressContext?.totalXP === 'number' && isFinite(progressContext.totalXP))
-                        ? progressContext.totalXP
-                        : (typeof userData?.points === 'number' && isFinite(userData.points) ? userData.points : 0);
-                      return `✨ ${xp.toLocaleString()}`;
-                    })()}
+                    ✨ {resolvedXP.toLocaleString()}
                   </Badge>
                   <Badge className="px-2 py-0.5 text-xs gradient-bg-gold flex-shrink-0 border-2 border-white/50">
                     {userData.level === 'Beginner' && '🌱'}
