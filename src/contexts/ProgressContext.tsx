@@ -6,7 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ProgressService, XPService } from '../utils/supabase/dataService';
+import { ProgressService } from '../utils/supabase/dataService';
 import ContentManager from '../utils/contentManager';
 import { useAuth } from './AuthContext';
 import type {
@@ -163,6 +163,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
         // Check if we need to recalculate XP from transactions (auto-fix corrupted data)
         try {
+          const { XPService } = await import('../utils/supabase/dataService');
           const transactions = await XPService.getXPTransactions(user.id, 1000); // Get all transactions
           const calculatedXP = transactions.reduce((sum, tx: any) => sum + (tx.amount || 0), 0);
           const dbXP = (progressRow as any)?.total_xp || 0;
