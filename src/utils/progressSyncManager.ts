@@ -256,18 +256,19 @@ export class ProgressSyncManager {
 
   private static recomputeAggregates(progress?: UserProgress | null) {
     if (!progress) return;
-    let lessons = 0, exercises = 0, projects = 0, xp = 0;
+    let lessons = 0, exercises = 0, projects = 0;
     for (const raw of Object.values(progress.moduleProgress || {})) {
       const mod = this.normalizeModuleProgress(raw as any);
       lessons += (mod.completedLessons || []).length;
       exercises += (mod.completedExercises || []).length;
       if (mod.projectCompleted) projects += 1;
     }
-    for (const d of Object.values(progress.dailyActivity || {})) xp += (d?.totalXP || 0);
+    // Update completion counts
     progress.lessons_completed = lessons;
     progress.exercises_completed = exercises;
     progress.projects_completed = projects;
-    progress.total_xp = xp;
+    // DO NOT recompute total_xp from dailyActivity - preserve database value
+    // total_xp is managed by the server and should not be calculated client-side
   }
 
 
