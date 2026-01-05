@@ -2360,4 +2360,46 @@ export class XPService {
       progressPercentage,
     };
   }
+
+  /**
+   * Recalculate and fix total_xp by summing all xp_transactions
+   * This can be used to restore the correct XP if it was corrupted
+   */
+  static async recalculateUserXP(userId: string): Promise<number> {
+    try {
+      console.log('[XPService] 🔧 Recalculating total XP from xp_transactions for user', userId);
+      
+      // Get all XP transactions for this user
+      const { data: transactions, error: txError } = await supabase
+        .from('xp_transactions')
+        .select('amount')
+        .eq('user_id', userId);
+
+      if (txError) {
+        console.error('[XPService] Failed to fetch xp_transactions', txError);
+        throw txError;
+      }
+
+      // Sum all XP amounts
+      const correctTotalXP = (transactions || []).reduce((sum, tx) => sum + (tx.amount || 0), 0);
+      console.log('[XPService] ✅ Calculated correct total XP:', correctTotalXP, 'from', transactions?.length || 0, 'transactions');
+
+      // Update user_progress with the correct value
+      const { error: updateError } = await supabase
+        .from('user_progress')
+        .update({ total_xp: correctTotalXP })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('[XPService] Failed to update total_xp', updateError);
+        throw updateError;
+      }
+
+      console.log('[XPService] ✅ Successfully updated total_xp to', correctTotalXP);
+      return correctTotalXP;
+    } catch (error) {
+      console.error('[XPService] recalculateUserXP failed:', error);
+      throw error;
+    }
+  }
 }

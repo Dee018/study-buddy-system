@@ -161,6 +161,27 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         const progressRow = await ProgressService.getUserProgress(user.id);
         console.debug('[ProgressContext] ProgressService.getUserProgress response', { userId: user.id, progressRow });
 
+        // Check if we need to recalculate XP from transactions (auto-fix corrupted data)
+        try {
+          const { XPService } = await import('../utils/supabase/dataService');
+          const transactions = await XPService.getXPTransactions(user.id, 1000); // Get all transactions
+          const calculatedXP = transactions.reduce((sum, tx: any) => sum + (tx.amount || 0), 0);
+          const dbXP = (progressRow as any)?.total_xp || 0;
+          
+          if (calculatedXP !== dbXP && calculatedXP > 0) {
+            console.warn('[ProgressContext] 🔧 XP mismatch detected! DB shows', dbXP, 'but transactions sum to', calculatedXP, '- recalculating...');
+            await XPService.recalculateUserXP(user.id);
+            // Reload progress after fix
+            const fixedProgressRow = await ProgressService.getUserProgress(user.id);
+            console.log('[ProgressContext] ✅ XP fixed! Reloaded progress with corrected total_xp:', (fixedProgressRow as any)?.total_xp);
+            if (fixedProgressRow) {
+              (progressRow as any) = fixedProgressRow;
+            }
+          }
+        } catch (recalcErr) {
+          console.warn('[ProgressContext] XP recalculation check failed (non-fatal)', recalcErr);
+        }
+
         let parsed: any = null;
         if (progressRow) {
           // If the service returns a `progress` JSON column, prefer that; otherwise map available columns.
