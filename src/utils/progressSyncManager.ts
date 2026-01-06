@@ -994,7 +994,11 @@ export class ProgressSyncManager {
   static getModuleProgress(userId: string, moduleId: string): ModuleDetailedProgress | null {
     const p = this.cache.get(userId) || null;
     if (!p || !p.moduleProgress) return null;
-    return (p.moduleProgress[moduleId] as ModuleDetailedProgress) || null;
+    const raw = p.moduleProgress[moduleId];
+    if (raw == null) return null;
+    // Normalize numeric (legacy) progress into the detailed object shape so
+    // callers (e.g. isItemCompleted) can safely read completion arrays.
+    return this.normalizeModuleProgress(raw as any);
   }
 
   /**
