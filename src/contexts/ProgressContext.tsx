@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { ProgressService } from '../utils/supabase/dataService';
 import { XPService } from '../utils/supabase/dataService';
 import { useAuth } from './AuthContext';
+import { ProgressSyncManager } from '../utils/progressSyncManager';
 import type {
   UserProgress,
   ModuleProgress,
@@ -695,8 +696,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       const { userId } = customEvent.detail || {};
       
       if (userId === user?.id) {
-        console.log('[ProgressContext] 🎯 xpAwarded event received - reloading progress');
+        console.log('[ProgressContext] 🎯 xpAwarded event received - clearing cache and reloading progress');
         try {
+          // Clear the ProgressSyncManager cache to force fresh database fetch
+          ProgressSyncManager.clearCache(userId);
+          
           // Force reload all progress data from database
           await loadAllProgressData();
           console.log('[ProgressContext] ✅ Progress reloaded after xpAwarded');

@@ -213,6 +213,17 @@ export class ProgressSyncManager {
     return /timeout|network|fetch|networkerror/.test(String(err).toLowerCase());
   }
 
+  // Clear cache for a specific user to force fresh database fetch
+  static clearCache(userId?: string) {
+    if (userId) {
+      this.cache.delete(userId);
+      console.log('[ProgressSyncManager] Cache cleared for user:', userId);
+    } else {
+      this.cache.clear();
+      console.log('[ProgressSyncManager] Cache cleared for all users');
+    }
+  }
+
   // Normalize module progress value which may be a legacy numeric percentage or
   // the detailed object shape. This returns a safe `ModuleDetailedProgress` object
   // that callers can mutate and persist back into `moduleProgress`.
