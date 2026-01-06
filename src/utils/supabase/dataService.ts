@@ -351,6 +351,11 @@ export class AuthService {
         }
       } catch (e) {
         console.warn('[AuthService.signUp] error verifying/updating user_profiles', e);
+        // Re-throw username/email conflict errors so the UI can handle them properly
+        if (e instanceof Error && (e.message === 'Username already taken' || e.message === 'Email already registered' || e.message === 'Unique constraint violation while creating user profile')) {
+          throw e;
+        }
+        // For other errors, log but continue (non-fatal)
       }
 
       // Insert a canonical mapping row into `user_accounts` linking our username to the
