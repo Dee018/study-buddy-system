@@ -102,7 +102,8 @@ BEGIN
   meta_username := NULLIF((NEW.raw_user_meta_data->>'username'), '');
   meta_uuid := NULLIF((NEW.raw_user_meta_data->>'uuid'), '');
 
-  derived_username := COALESCE(meta_username, lower(split_part(NEW.email, '@', 1)));
+  -- IMPORTANT: Convert username to lowercase for case-insensitive uniqueness
+  derived_username := LOWER(COALESCE(meta_username, split_part(NEW.email, '@', 1)));
   derived_uuid := COALESCE(meta_uuid, public.generate_recovery_code());
 
   INSERT INTO public.user_profiles (id, uuid, username, email, account_created_at, last_login_at, created_at, updated_at)
@@ -126,7 +127,7 @@ BEGIN
   SELECT
     u.id,
     COALESCE(NULLIF((u.raw_user_meta_data->>'uuid'), ''), public.generate_recovery_code()) AS uuid,
-    COALESCE(NULLIF((u.raw_user_meta_data->>'username'), ''), lower(split_part(u.email, '@', 1))) AS username,
+    LOWER(COALESCE(NULLIF((u.raw_user_meta_data->>'username'), ''), split_part(u.email, '@', 1))) AS username,
     u.email,
     NOW(),
     NOW(),
