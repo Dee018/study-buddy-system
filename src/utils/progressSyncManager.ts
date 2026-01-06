@@ -1451,7 +1451,25 @@ ProgressSyncManager['persistCompletions'] = async function (userId: string, prog
           }
         } catch (e) { /* ignore aggregation failures - fallback below */ }
 
-        const totalItems = ((mod.lessonOrder && mod.lessonOrder.length) || 0) + ((mod.completedExercises && mod.completedExercises.length) || 0) + (mod.projectCompleted ? 1 : 0);
+        // FIX: Calculate total items from curriculum definition, not lessonOrder
+        // This ensures completion_percentage is accurate (only 100% when ALL items including exercises and project are done)
+        let totalLessons = 0;
+        let totalExercises = 0;
+        let hasProject = 0;
+        try {
+          const ContentManager = require('../contentManager').default;
+          const allModules = ContentManager.getAllModules();
+          const moduleInCurriculum = allModules.find((m: any) => m.id === moduleId || m.id === moduleId.replace('module-', 'beginner-module-') || m.id === moduleId.replace('beginner-module-', 'module-'));
+          if (moduleInCurriculum) {
+            totalLessons = moduleInCurriculum.lessons?.length || 0;
+            totalExercises = moduleInCurriculum.handsOnExercises?.length || 0;
+            hasProject = moduleInCurriculum.assessmentProject ? 1 : 0;
+          }
+        } catch (e) {
+          console.warn('[persistCompletions] Failed to load curriculum for module calculation', { moduleId, error: e });
+        }
+        
+        const totalItems = totalLessons + totalExercises + hasProject;
         const payload = {
           user_id: userId,
           module_id: moduleId,
