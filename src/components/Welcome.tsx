@@ -331,12 +331,23 @@ export function Welcome({ onComplete }: WelcomeProps) {
         return;
       }
 
-      // Check email uniqueness before attempting signup to avoid race
+      // Check BOTH email and username uniqueness before attempting signup to avoid race conditions
       try {
         setIsCheckingUsername(true);
+        
+        // Check email availability from user_profiles table
         const emailTaken = await AuthService.emailExists(signupEmail);
         if (emailTaken) {
           setSignupEmailError('Email already registered');
+          setIsCheckingUsername(false);
+          return;
+        }
+        
+        // Check username availability from user_profiles table
+        const usernameTaken = await AuthService.usernameExists(signupUsername);
+        if (usernameTaken) {
+          setSignupUsernameError('Username already taken');
+          setSuggestedUsernames(generateUsernameSuggestions(signupUsername));
           setIsCheckingUsername(false);
           return;
         }
@@ -345,9 +356,6 @@ export function Welcome({ onComplete }: WelcomeProps) {
       } finally {
         setIsCheckingUsername(false);
       }
-
-      // Do not perform a server-side username probe here; rely on Supabase Auth
-      // to surface registration errors (e.g., email already registered).
 
       // 2️⃣ Generate a recovery code / UUID
       const recoveryCode = crypto.randomUUID();

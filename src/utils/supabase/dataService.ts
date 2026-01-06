@@ -232,7 +232,7 @@ export class AuthService {
     // detect older call signature: (username, password, uuid)
     if (typeof d === 'undefined' && /^[a-zA-Z0-9_]+$/.test(a) && c && b) {
       // legacy: a=username, b=password, c=uuid
-      username = a;
+      username = a.toLowerCase(); // Normalize to lowercase to match DB constraint
       password = b;
       uuid = c;
       email = this.generateInternalEmail(username);
@@ -240,7 +240,7 @@ export class AuthService {
       // new: a=email, b=password, c=username, d=uuid
       email = a;
       password = b;
-      username = c;
+      username = c.toLowerCase(); // Normalize to lowercase to match DB constraint
       uuid = d;
     }
 
