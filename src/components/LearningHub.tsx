@@ -1259,18 +1259,12 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
           scrollToTop();
         }}
         userProgress={(() => {
-          const progress = safeUserProgress?.moduleProgress?.[selectedEnhancedModule.id] ?? null;
-          if (progress && typeof progress === 'object') {
-            return {
-              completedLessons: progress.completedLessons || [],
-              completedExercises: progress.completedExercises || [],
-              projectCompleted: progress.projectCompleted || false
-            };
-          }
+          const raw = safeUserProgress?.moduleProgress?.[selectedEnhancedModule.id] ?? null;
+          const detailed = asDetailedModuleProgress(raw);
           return {
-            completedLessons: [],
-            completedExercises: [],
-            projectCompleted: false
+            completedLessons: detailed.completedLessons || [],
+            completedExercises: detailed.completedExercises || [],
+            projectCompleted: detailed.projectCompleted || false
           };
         })()}
         initialTab={preferredTab}
