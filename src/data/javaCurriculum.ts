@@ -840,12 +840,21 @@ export const getUnlockedModules = (arg1: any, arg2: any = { completedModules: []
 
     // Check if previous module has 100% progress
     const moduleProgressMap = userProgress.moduleProgress || {};
+    // Read both the canonical id and the alternate "beginner-module-" id when available
     let previousModuleProgress = moduleProgressMap[previousModule.id];
-
-    // Also check with beginner-module prefix for beginner modules
-    if (!previousModuleProgress && previousModule.id && previousModule.id.startsWith && previousModule.id.startsWith('module-')) {
+    let altPreviousModuleProgress: any = null;
+    if (previousModule.id && previousModule.id.startsWith && previousModule.id.startsWith('module-')) {
       const enhancedId = previousModule.id.replace('module-', 'beginner-module-');
-      previousModuleProgress = moduleProgressMap[enhancedId];
+      altPreviousModuleProgress = moduleProgressMap[enhancedId];
+    }
+
+    // If both variants exist, prefer the detailed object over a legacy numeric value
+    if (previousModuleProgress && altPreviousModuleProgress) {
+      if (typeof previousModuleProgress === 'number' && typeof altPreviousModuleProgress === 'object') {
+        previousModuleProgress = altPreviousModuleProgress;
+      }
+    } else if (!previousModuleProgress) {
+      previousModuleProgress = altPreviousModuleProgress;
     }
 
     let isPreviousModuleFullyComplete = false;
