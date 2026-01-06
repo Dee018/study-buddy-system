@@ -676,7 +676,7 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
     return quizzes[lesson.difficulty.toLowerCase()] || quizzes['easy'];
   };
 
-  const handleQuizSubmit = (answer: string) => {
+  const handleQuizSubmit = async (answer: string) => {
     const currentQuestion = quizQuestions[0];
     if (!currentQuestion) return;
     const answerNum = parseInt(answer, 10);
@@ -1128,7 +1128,7 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
         }}
         progressIsLoading={progressIsLoading}
         isRefreshingProgress={isRefreshingProgress}
-        onComplete={() => {
+        onComplete={async () => {
           // Calculate XP based on difficulty
           const xpEarned = activeDetailedLesson.difficulty === 'Easy' ? 50 :
             activeDetailedLesson.difficulty === 'Intermediate' ? 75 : 100;
