@@ -341,24 +341,21 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
     let debounceTimer: number | null = null;
-    const handler = (ev: Event) => {
+    const unsubscribe = ProgressSyncManager.subscribe((evt: any) => {
       try {
-        const detail = (ev as CustomEvent)?.detail || {};
-        const uid = detail.userId;
-        const type = detail.type;
+        const uid = evt.userId;
+        const type = evt.type;
         if (!uid || uid !== user.id) return;
-        // Only react to relevant progress events
         if (!['saved', 'progress-updated', 'local-update'].includes(type)) return;
         if (debounceTimer) window.clearTimeout(debounceTimer);
         debounceTimer = window.setTimeout(() => {
           void loadAllProgressData();
         }, 300) as unknown as number;
       } catch (e) { /* ignore */ }
-    };
+    });
 
-    window.addEventListener('progressUpdated', handler as EventListener);
     return () => {
-      window.removeEventListener('progressUpdated', handler as EventListener);
+      try { if (typeof unsubscribe === 'function') unsubscribe(); } catch { }
       if (debounceTimer) window.clearTimeout(debounceTimer);
     };
   }, [user?.id, loadAllProgressData]);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
+import { ProgressSyncManager } from '../utils/progressSyncManager';
 import { supabase } from '../utils/supabase/client';
 import calculateStreak, { ProgressRecord } from '../utils/calculateStreak';
 
@@ -90,20 +91,20 @@ export function useUserStreak(userId?: string | null, opts?: UseUserStreakOption
     }
   }, [opts?.subscribe, userId, fetchAndCompute]);
 
-  // Listen for application-level `progressUpdated` events (existing event bridge)
+  // Subscribe to ProgressSyncManager for progress updates instead of global window events
   useEffect(() => {
-    const handler = (ev: Event) => {
+    if (!userId) return;
+    const unsubscribe = ProgressSyncManager.subscribe((evt: any) => {
       try {
-        const detail = (ev as CustomEvent)?.detail;
-        if (!detail) return;
-        if (detail.userId && detail.userId === userId) {
+        if (evt && evt.userId === userId) {
           void fetchAndCompute();
         }
       } catch (e) { /* ignore */ }
-    };
+    });
 
-    window.addEventListener('progressUpdated', handler as EventListener);
-    return () => window.removeEventListener('progressUpdated', handler as EventListener);
+    return () => {
+      try { if (typeof unsubscribe === 'function') unsubscribe(); } catch { }
+    };
   }, [userId, fetchAndCompute]);
 
   return { streak, loading, reload: fetchAndCompute } as const;

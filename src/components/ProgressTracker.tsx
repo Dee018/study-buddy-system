@@ -713,22 +713,21 @@ export function ProgressTracker({ onNavigate, isNewUser = false }: ProgressTrack
     return () => clearInterval(interval);
   }, [userId, loadAllRealData]);
 
-  // Listen for global progress updates
+  // Listen for global progress updates via ProgressSyncManager
   useEffect(() => {
     if (!userId) return;
 
-    const handleProgressUpdate = (event: CustomEvent) => {
-      if (event.detail.userId === userId) {
-        loadAllRealData(userId);
-        // Keep UI in sync by forcing a lightweight refresh
-        setRefreshTrigger(prev => prev + 1);
-      }
-    };
-
-    window.addEventListener('progressUpdated', handleProgressUpdate as EventListener);
+    const unsubscribe = ProgressSyncManager.subscribe((evt: any) => {
+      try {
+        if (evt && evt.userId === userId) {
+          loadAllRealData(userId);
+          setRefreshTrigger(prev => prev + 1);
+        }
+      } catch (e) { /* ignore */ }
+    });
 
     return () => {
-      window.removeEventListener('progressUpdated', handleProgressUpdate as EventListener);
+      try { if (typeof unsubscribe === 'function') unsubscribe(); } catch { }
     };
   }, [userId, loadAllRealData]);
 
