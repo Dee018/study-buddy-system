@@ -477,10 +477,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
 
+      console.log('[ProgressContext] completeLesson: calling ProgressService.completeLesson', { userId: user.id, moduleId, lessonId, xpEarned });
       await ProgressService.completeLesson(user.id, moduleId, lessonId, xpEarned, timeSpent);
+      console.log('[ProgressContext] completeLesson: ProgressService.completeLesson returned', { userId: user.id, moduleId, lessonId });
 
       // Award XP
+      console.log('[ProgressContext] completeLesson: awarding XP via awardXP', { amount: xpEarned, lessonId });
       await awardXP(xpEarned, 'lesson', lessonId, `Completed lesson: ${lessonId}`);
+      console.log('[ProgressContext] completeLesson: awardXP completed', { amount: xpEarned, lessonId });
 
       // Update streak
       await updateStreak();
@@ -610,14 +614,19 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
     try {
       setError(null);
-
+      console.log('[ProgressContext] awardXP: calling XPService.awardXP', { userId: user?.id, amount, sourceType, sourceId });
       await XPService.awardXP(user.id, amount, sourceType, sourceId, description);
+      console.log('[ProgressContext] awardXP: XPService.awardXP succeeded', { userId: user.id, amount });
 
       // Optimistic update
-      setTotalXP(prev => prev + amount);
+      setTotalXP(prev => {
+        const next = (prev || 0) + amount;
+        console.log('[ProgressContext] awardXP: optimistic totalXP updated', { prev, next });
+        return next;
+      });
 
       // Check for level up
-      const newLevel = XPService.calculateLevel(totalXP + amount);
+      const newLevel = XPService.calculateLevel((totalXP || 0) + amount);
       if (newLevel > level) {
         setLevel(newLevel);
       }

@@ -16,6 +16,7 @@ import { Progress } from './ui/progress';
 import { useAllModulesProgress, useCompletionStats } from '../hooks/useModuleProgress';
 import { CompletionBadge, ProgressRing, getCompletionStatus } from './CompletionBadge';
 import { ProgressSyncManager } from '../utils/progressSyncManager';
+import { useProgress } from '../contexts/ProgressContext';
 import { ProgressManager } from '../utils/progressManager';
 import { asDetailedModuleProgress } from '../utils/moduleProgressCompat';
 import {
@@ -36,6 +37,45 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
   const { allProgress, isLoading, refresh } = useAllModulesProgress(userId);
   const stats = useCompletionStats(userId);
   const [testResults, setTestResults] = useState<string[]>([]);
+  const progressContext = useProgress();
+
+  // Helpers: prefer ProgressContext (which calls XPService.awardXP), fall
+  // back to ProgressSyncManager for demo/resilience.
+  const handleCompleteLesson = async (moduleId: string, lessonId: string, xp: number) => {
+    try {
+      if (progressContext && typeof progressContext.completeLesson === 'function') {
+        await progressContext.completeLesson(moduleId, lessonId, xp);
+        return;
+      }
+    } catch (e) {
+      console.warn('handleCompleteLesson: progressContext.completeLesson failed', e);
+    }
+    void ProgressSyncManager.completeLesson(userId, moduleId, lessonId, xp);
+  };
+
+  const handleCompleteExercise = async (moduleId: string, exerciseId: string, xp: number, code?: string) => {
+    try {
+      if (progressContext && typeof progressContext.completeExercise === 'function') {
+        await progressContext.completeExercise(moduleId, exerciseId, code || '', xp);
+        return;
+      }
+    } catch (e) {
+      console.warn('handleCompleteExercise: progressContext.completeExercise failed', e);
+    }
+    void ProgressSyncManager.completeExercise(userId, moduleId, exerciseId, xp, code);
+  };
+
+  const handleCompleteProject = async (moduleId: string, xp: number, code?: string) => {
+    try {
+      if (progressContext && typeof progressContext.completeProject === 'function') {
+        await progressContext.completeProject(moduleId, 'project', code || '', 0, xp);
+        return;
+      }
+    } catch (e) {
+      console.warn('handleCompleteProject: progressContext.completeProject failed', e);
+    }
+    void ProgressSyncManager.completeProject(userId, moduleId, xp, code);
+  };
 
   // Test 1: Complete Module 1 and verify it doesn't reset
   const testModule1Persistence = () => {
@@ -47,18 +87,18 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
 
       // Complete lessons
       for (let i = 1; i <= 5; i++) {
-        ProgressSyncManager.completeLesson(userId, moduleId, `lesson-${i}`, 50);
+        void handleCompleteLesson(moduleId, `lesson-${i}`, 50);
         results.push(`✅ Completed lesson ${i}`);
       }
 
       // Complete exercises
       for (let i = 1; i <= 5; i++) {
-        ProgressSyncManager.completeExercise(userId, moduleId, `exercise-${i}`, 100, `// Sample code for exercise ${i}`);
+        void handleCompleteExercise(moduleId, `exercise-${i}`, 100, `// Sample code for exercise ${i}`);
         results.push(`✅ Completed exercise ${i}`);
       }
 
       // Complete project
-      ProgressSyncManager.completeProject(userId, moduleId, 200, '// Sample project code');
+      void handleCompleteProject(moduleId, 200, '// Sample project code');
       results.push(`✅ Completed project`);
 
       // Verify module is at 100%
@@ -75,7 +115,7 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
 
       // Now unlock Module 2 and verify Module 1 stays at 100%
       const module2Id = 'beginner-module-2';
-      ProgressSyncManager.completeLesson(userId, module2Id, 'lesson-1', 50);
+      void handleCompleteLesson(module2Id, 'lesson-1', 50);
       results.push('');
       results.push(`🔓 Unlocked Module 2 (completed one lesson)`);
 
@@ -107,7 +147,7 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
 
     try {
       // Complete an exercise
-      ProgressSyncManager.completeExercise(userId, moduleId, exerciseId, 100, '// Read-only test code');
+      void handleCompleteExercise(moduleId, exerciseId, 100, '// Read-only test code');
       results.push(`✅ Completed exercise: ${exerciseId}`);
 
       // Check if it's completed
@@ -154,7 +194,7 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
 
       // Second submission (improved code)
       results.push('2️⃣ Second Attempt (after fixing errors):');
-      ProgressSyncManager.completeProject(userId, moduleId, 200, '// Complete validated code');
+      void handleCompleteProject(moduleId, 200, '// Complete validated code');
       results.push('   - Code: // Complete validated code');
       results.push('   - Validation: Passed ✅');
       results.push('   - Status: submitted-successfully');
@@ -205,7 +245,7 @@ export function ProgressPersistenceDemo({ userId }: ProgressPersistenceDemoProps
       results.push('');
 
       // Make changes
-      ProgressSyncManager.completeLesson(userId, 'beginner-module-4', 'lesson-test', 50);
+      void handleCompleteLesson('beginner-module-4', 'lesson-test', 50);
       results.push('✅ Completed a lesson in Module 4');
       results.push('');
 

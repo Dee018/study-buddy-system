@@ -1,6 +1,8 @@
 import { supabase } from './supabase/client';
 import safeUpsertUserProgress from './supabase/safeProgressUpsert';
 import prepareLessonCompletionsForInsert from './supabase/lessonCompletionsUpsert';
+// Import XPService to create xp_transactions when ProgressSyncManager records completions
+import { XPService } from './supabase/dataService';
 
 // Small UUID v4 helper used when inserting rows that require explicit ids
 function generateUUIDv4() {
@@ -570,6 +572,37 @@ export class ProgressSyncManager {
         try { await this.triggerQueueProcessingForUser(userId); } catch (qErr) { console.warn('[completeLesson] triggerQueueProcessingForUser failed', qErr); }
       }
     } catch (e) { /* ignore */ }
+
+    // Ensure an xp_transaction exists for this completion. Many legacy callers
+    // write completions via ProgressSyncManager directly (without calling
+    // XPService.awardXP). To support current and future users, create the
+    // xp_transaction idempotently here if it doesn't already exist.
+    try {
+      if (!wasCompleted && typeof xpEarned === 'number' && xpEarned > 0) {
+        const { data: existingTx, error: txErr } = await supabase
+          .from('xp_transactions')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('source', 'lesson')
+          .eq('source_id', lessonId)
+          .maybeSingle();
+
+        if (txErr) {
+          console.warn('[completeLesson] xp_transactions lookup failed', { userId, lessonId, error: txErr });
+        } else if (!existingTx) {
+          try {
+            await XPService.awardXP(userId, xpEarned as number, 'lesson', lessonId, `Completed lesson: ${lessonId}`);
+            console.debug('[completeLesson] created xp_transaction via XPService.awardXP', { userId, lessonId, xp: xpEarned });
+          } catch (e) {
+            console.warn('[completeLesson] XPService.awardXP failed', { userId, lessonId, error: e });
+          }
+        } else {
+          console.debug('[completeLesson] xp_transaction already exists, skipping award', { userId, lessonId });
+        }
+      }
+    } catch (e) {
+      console.warn('[completeLesson] post-completion XP idempotency check failed', { userId, lessonId, error: e });
+    }
 
     // concise logging: only when a completion happened or a next item unlocked
     if (!wasCompleted || newlyUnlocked) {
@@ -1462,13 +1495,16 @@ ProgressSyncManager['persistCompletions'] = async function (userId: string, prog
         let totalExercises = 0;
         let hasProject = 0;
         try {
-          const ContentManager = require('../contentManager').default;
-          const allModules = ContentManager.getAllModules();
-          const moduleInCurriculum = allModules.find((m: any) => m.id === moduleId || m.id === moduleId.replace('module-', 'beginner-module-') || m.id === moduleId.replace('beginner-module-', 'module-'));
-          if (moduleInCurriculum) {
-            totalLessons = moduleInCurriculum.lessons?.length || 0;
-            totalExercises = moduleInCurriculum.handsOnExercises?.length || 0;
-            hasProject = moduleInCurriculum.assessmentProject ? 1 : 0;
+          // Avoid calling `require` in browser environments where it's undefined.
+          if (typeof require === 'function') {
+            const ContentManager = require('../contentManager').default;
+            const allModules = ContentManager.getAllModules();
+            const moduleInCurriculum = allModules.find((m: any) => m.id === moduleId || m.id === moduleId.replace('module-', 'beginner-module-') || m.id === moduleId.replace('beginner-module-', 'module-'));
+            if (moduleInCurriculum) {
+              totalLessons = moduleInCurriculum.lessons?.length || 0;
+              totalExercises = moduleInCurriculum.handsOnExercises?.length || 0;
+              hasProject = moduleInCurriculum.assessmentProject ? 1 : 0;
+            }
           }
         } catch (e) {
           console.warn('[persistCompletions] Failed to load curriculum for module calculation', { moduleId, error: e });
