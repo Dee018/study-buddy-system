@@ -35,7 +35,7 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
       faqs: [
         {
           question: 'How do I create an account?',
-          answer: 'Click on "Create Account" on the welcome page and enter your username. A unique UUID will be generated for you automatically. Make sure to save your UUID for future logins.'
+          answer: 'Click on "Create Account" on the welcome page and enter your email, username, and password.'
         },
         {
           question: 'How do I track my progress?',
@@ -133,7 +133,7 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
         },
         {
           question: 'How do I reset my password?',
-          answer: 'Use the password recovery feature on the login page. You\'ll need your UUID and registered email to reset your password securely.'
+          answer: 'Use the password recovery feature on the login page. You\'ll need your registered email and username (in lowercase) to reset your password securely.'
         }
       ]
     }
