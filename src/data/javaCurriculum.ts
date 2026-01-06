@@ -832,7 +832,11 @@ export const getUnlockedModules = (arg1: any, arg2: any = { completedModules: []
     }
 
     // Check if previous module is completed OR has 100% progress
-    const isPreviousInCompletedList = (userProgress.completedModules || []).includes(previousModule.id);
+    // Check completedModules flag, but prefer authoritative detailed progress
+    // when available. This avoids unlocking the next module when the
+    // completedModules list is stale or was set incorrectly.
+    const completedModulesList = userProgress.completedModules || [];
+    const isPreviousInCompletedList = completedModulesList.includes(previousModule.id);
 
     // Check if previous module has 100% progress
     const moduleProgressMap = userProgress.moduleProgress || {};
@@ -848,13 +852,27 @@ export const getUnlockedModules = (arg1: any, arg2: any = { completedModules: []
     if (typeof previousModuleProgress === 'number') {
       isPreviousModuleFullyComplete = previousModuleProgress >= 100;
     } else if (previousModuleProgress && typeof previousModuleProgress === 'object') {
-      // For object-based progress, rely on the completedModules array
-      // The ProgressManager will auto-add to completedModules when all items are done
-      // So we don't need to calculate here - just trust the completedModules list
-      isPreviousModuleFullyComplete = false;
+      // For object-based progress, compute completion from detailed counts
+      const completedLessons = (previousModuleProgress as any).completedLessons?.length || 0;
+      const completedExercises = (previousModuleProgress as any).completedExercises?.length || 0;
+      const completedProject = (previousModuleProgress as any).projectCompleted ? 1 : 0;
+
+      const totalLessons = previousModule.lessons?.length || 0;
+      const totalExercises = previousModule.handsOnExercises?.length || 0;
+      const totalProject = previousModule.assessmentProject ? 1 : 0;
+
+      isPreviousModuleFullyComplete = (
+        (totalLessons === 0 || completedLessons >= totalLessons) &&
+        (totalExercises === 0 || completedExercises >= totalExercises) &&
+        (totalProject === 0 || completedProject >= totalProject)
+      );
     }
 
-    const previousModuleCompleted = isPreviousInCompletedList || isPreviousModuleFullyComplete;
+    // Consider previous module completed only if either the detailed progress
+    // indicates 100% or the legacy numeric percentage is 100+. If only the
+    // completedModules flag is present but detailed progress contradicts it,
+    // treat it as not completed to avoid premature unlocking.
+    const previousModuleCompleted = isPreviousModuleFullyComplete || isPreviousInCompletedList && typeof previousModuleProgress !== 'object';
 
     return {
       ...module,
