@@ -763,7 +763,7 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
     scrollToTop();
   };
 
-  const handleExerciseComplete = (code: string, isCorrect: boolean) => {
+  const handleExerciseComplete = async (code: string, isCorrect: boolean) => {
     if (!activeExercise || !userId || !selectedEnhancedModule || !isCorrect) return;
 
     // Save navigation state so after an optional reload the app can restore
@@ -771,15 +771,19 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
       sessionStorage.setItem('sb_post_reload_nav', JSON.stringify({ screen: 'learning', navigationData: { moduleId: selectedEnhancedModule.id, activeExerciseId: activeExercise.id, activeTab: 'exercises' } }));
     } catch (e) { /* ignore */ }
 
-    // Mark exercise as completed and store the code using ProgressSyncManager
-    ProgressSyncManager.completeExercise(userId, selectedEnhancedModule.id, activeExercise.id, activeExercise.points || 50, code);
-
-    // Award XP
-    const xp = activeExercise.points || 50;
-
-    if (onXPEarned) {
-      onXPEarned(xp, `Completed ${activeExercise.title}`);
+    // Mark exercise as completed and award XP via ProgressContext so server
+    // `xp_transactions` and `user_progress.total_xp` are updated.
+    try {
+      await progressContext.completeExercise(selectedEnhancedModule.id, activeExercise.id, code, activeExercise.points || 50);
+    } catch (e) {
+      console.warn('handleExerciseComplete: progressContext.completeExercise failed', e);
+      // Fallback: still call sync manager so local state updates
+      void ProgressSyncManager.completeExercise(userId, selectedEnhancedModule.id, activeExercise.id, activeExercise.points || 50, code);
     }
+
+    // Fire immediate UI hook for popup (App also listens for xpAwarded)
+    const xp = activeExercise.points || 50;
+    if (onXPEarned) onXPEarned(xp, `Completed ${activeExercise.title}`);
 
     // Progress will auto-refresh via the sync hook
     triggerRefreshProgress();
@@ -841,15 +845,18 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
         sessionStorage.setItem('sb_post_reload_nav', JSON.stringify({ screen: 'learning', navigationData: { moduleId: selectedEnhancedModule.id, activeProjectId: activeProject.id, activeTab: 'project' } }));
       } catch (e) { /* ignore */ }
 
-      // Mark project as completed with the submitted code for review using ProgressSyncManager
-      ProgressSyncManager.completeProject(userId, selectedEnhancedModule.id, activeProject.points || 100, code);
-
-      // Award XP
-      const xp = activeProject.points || 100;
-
-      if (onXPEarned) {
-        onXPEarned(xp, `Completed ${activeProject.title}`);
+      // Mark project as completed and award XP via ProgressContext so server
+      // `xp_transactions` and `user_progress.total_xp` are updated.
+      try {
+        await progressContext.completeProject(selectedEnhancedModule.id, activeProject.id, code, 0, activeProject.points || 100);
+      } catch (e) {
+        console.warn('handleProjectSubmit: progressContext.completeProject failed', e);
+        void ProgressSyncManager.completeProject(userId, selectedEnhancedModule.id, activeProject.points || 100, code);
       }
+
+      // Fire immediate UI hook for popup
+      const xp = activeProject.points || 100;
+      if (onXPEarned) onXPEarned(xp, `Completed ${activeProject.title}`);
 
       // Progress will auto-refresh via the sync hook
       triggerRefreshProgress();
