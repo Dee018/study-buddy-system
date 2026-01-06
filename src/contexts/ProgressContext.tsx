@@ -140,6 +140,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
       console.debug('[ProgressContext] loadAllProgressData start', { userId: user.id });
 
+      // Clear ProgressSyncManager cache to ensure fresh database fetch
+      ProgressSyncManager.clearCache(user.id);
+      console.debug('[ProgressContext] Cleared ProgressSyncManager cache for user', user.id);
+
       // Ensure any local autosave keys are cleared before hydration (preserve auth keys)
       try {
         if (typeof window !== 'undefined' && window.localStorage) {

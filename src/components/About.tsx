@@ -57,7 +57,7 @@ export function About({ onNavigate }: AboutProps) {
                   </div>
                   <h3 className="text-xl">Comprehensive Curriculum</h3>
                   <p className="text-sm text-muted-foreground">
-                    From Java fundamentals to advanced topics, our 12-week structured curriculum covers everything you need to become proficient.
+                    From Java fundamentals to advanced topics, our 8-module structured curriculum covers everything you need to become proficient.
                   </p>
                 </CardContent>
               </Card>
@@ -107,7 +107,7 @@ export function About({ onNavigate }: AboutProps) {
                   <div className="flex items-start space-x-3">
                     <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                     <p className="text-muted-foreground">
-                      <span className="text-foreground">Structured Learning Path:</span> Follow a carefully designed 12-week curriculum that takes you from beginner to advanced level.
+                      <span className="text-foreground">Structured Learning Path:</span> Follow a carefully designed 8-module curriculum that takes you from beginner to advanced level.
                     </p>
                   </div>
                   <div className="flex items-start space-x-3">
