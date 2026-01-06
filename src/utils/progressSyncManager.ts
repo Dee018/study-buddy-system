@@ -1105,9 +1105,30 @@ export class ProgressSyncManager {
     const totalExercises = Object.values(snap.completedExercises).reduce((s, arr) => s + (arr?.length || 0), 0);
     const totalProjects = snap.completedProjects.length;
     const totalModules = snap.completedModules.length;
-    const estimatedTotalItems = 12 * (5 + 5 + 1); // adjust to your course
-    const completedItems = totalLessons + totalExercises + totalProjects;
-    const completionPercentage = Math.round((completedItems / estimatedTotalItems) * 100);
+    // Prefer to compute totals from the actual curriculum where available so
+    // overall progress reflects real lesson/exercise/project counts. Fall back
+    // to a legacy estimate if the curriculum module isn't available at runtime.
+    let completionPercentage = 0;
+    try {
+      // Lazy-import the curriculum stats to avoid circular imports in some runtimes
+      // and to keep this module resilient in test environments.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const curriculum = require('../data/comprehensiveBeginnerCurriculum');
+      const stats = typeof curriculum.getBeginnerTrackStats === 'function' ? curriculum.getBeginnerTrackStats() : null;
+      if (stats) {
+        const estimatedTotalItems = (stats.totalLessons || 0) + (stats.totalExercises || 0) + (stats.totalProjects || 0);
+        const completedItems = totalLessons + totalExercises + totalProjects;
+        completionPercentage = estimatedTotalItems > 0 ? Math.round((completedItems / estimatedTotalItems) * 100) : 0;
+      } else {
+        const legacyEstimate = 12 * (5 + 5 + 1);
+        const completedItems = totalLessons + totalExercises + totalProjects;
+        completionPercentage = Math.round((completedItems / legacyEstimate) * 100);
+      }
+    } catch (e) {
+      const legacyEstimate = 12 * (5 + 5 + 1);
+      const completedItems = totalLessons + totalExercises + totalProjects;
+      completionPercentage = Math.round((completedItems / legacyEstimate) * 100);
+    }
 
     return {
       totalLessons,

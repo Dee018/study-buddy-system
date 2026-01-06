@@ -436,10 +436,21 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
       totalExercises += exercisesCount;
       totalProjects += projectsCount;
 
-      // If module is in completedModules, count all items as completed
+      // If module is in completedModules, prefer using detailed progress (if present)
+      // to avoid counting a module as fully complete when the completedModules
+      // flag may be stale. Only fall back to counting all items when no
+      // detailed progress exists or when legacy numeric 100 is present.
       const completedModulesArr = progress?.completedModules || [];
       const altId = mod.id.startsWith('module-') ? mod.id.replace('module-', 'beginner-module-') : mod.id.startsWith('beginner-module-') ? mod.id.replace('beginner-module-', 'module-') : mod.id;
       if (completedModulesArr.includes(mod.id) || completedModulesArr.includes(altId)) {
+        if (modProgress && typeof modProgress === 'object') {
+          // Use the detailed progress counts when available
+          completedLessons += (Array.isArray(modProgress.completedLessons) ? modProgress.completedLessons.length : 0);
+          completedExercises += (Array.isArray(modProgress.completedExercises) ? modProgress.completedExercises.length : 0);
+          completedProjects += (modProgress.projectCompleted ? 1 : 0);
+          return;
+        }
+        // No detailed object present — assume legacy numeric completion
         completedLessons += lessonsCount;
         completedExercises += exercisesCount;
         completedProjects += projectsCount;
