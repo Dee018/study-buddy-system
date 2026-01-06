@@ -819,13 +819,16 @@ export class AuthService {
   static async usernameExists(username: string): Promise<boolean> {
     if (!username) return false;
     const uname = username.toLowerCase();
+    console.log('[AuthService.usernameExists] Checking username:', { original: username, normalized: uname });
     try {
-      const { data, error } = await supabase.from('user_profiles').select('id').eq('username', uname).maybeSingle();
+      const { data, error } = await supabase.from('user_profiles').select('id, username').eq('username', uname).maybeSingle();
       if (error) {
         console.warn('[AuthService.usernameExists] probe failed, assuming available', { username, error });
         return false;
       }
-      return !!(data && (data as any).id);
+      const exists = !!(data && (data as any).id);
+      console.log('[AuthService.usernameExists] Result:', { username: uname, exists, foundData: data });
+      return exists;
     } catch (e) {
       console.warn('[AuthService.usernameExists] exception, assuming available', { username, e });
       return false;

@@ -202,8 +202,10 @@ export function Welcome({ onComplete }: WelcomeProps) {
             (async () => {
               try {
                 const localTaken = isUsernameTaken(value);
+                console.log('[Welcome.checkUsernameAvailability] Checking:', { username: value, localTaken });
                 // Query server-side user_profiles to see if username exists in auth-backed profiles.
                 const serverTaken = await AuthService.usernameExists(value);
+                console.log('[Welcome.checkUsernameAvailability] Server result:', { username: value, serverTaken });
                 const isAvailable = !localTaken && !serverTaken;
                 setUsernameAvailable(isAvailable);
                 setIsCheckingUsername(false);
