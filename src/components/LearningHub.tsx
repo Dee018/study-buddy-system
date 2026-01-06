@@ -689,7 +689,7 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
       clearTimeout(quizTimeoutRef.current);
     }
 
-    quizTimeoutRef.current = setTimeout(() => {
+    quizTimeoutRef.current = setTimeout(async () => {
       setShowLessonQuiz(false);
       setQuizFeedback('');
 
