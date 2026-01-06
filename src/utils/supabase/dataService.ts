@@ -1321,6 +1321,20 @@ export class ProgressService {
       if (existing) return existing;
 
       // Create lesson completion
+      // Lookup lesson title and include it to satisfy NOT NULL constraint and
+      // provide useful history metadata (mirrors exercise completion behavior).
+      let lessonTitle: string | null = null;
+      try {
+        const { data: lessonRow } = await supabase
+          .from('lessons')
+          .select('title')
+          .eq('id', lessonId)
+          .maybeSingle();
+        if (lessonRow && (lessonRow as any).title) lessonTitle = (lessonRow as any).title;
+      } catch (e) {
+        // ignore lookup failures; proceed without title (should be rare)
+      }
+
       const { data, error } = await supabase
         .from('lesson_completions')
         .insert({
@@ -1329,6 +1343,7 @@ export class ProgressService {
           module_id: moduleId,
           xp_earned: xpEarned,
           time_spent_minutes: timeSpent,
+          lesson_title: lessonTitle,
         })
         .select()
         .maybeSingle();

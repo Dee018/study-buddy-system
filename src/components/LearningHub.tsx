@@ -2084,11 +2084,34 @@ public class Example {
                             const prevEnhancedModuleId = prevModule.id.startsWith('module-')
                               ? prevModule.id.replace('module-', 'beginner-module-')
                               : prevModule.id;
-                            const prevProgress = getNumericProgress(prevModule.id);
-                            const isPrevCompleted = safeUserProgress.completedModules.includes(prevModule.id) ||
-                              safeUserProgress.completedModules.includes(prevEnhancedModuleId) ||
-                              prevProgress === 100;
-                            canAccess = isPrevCompleted;
+
+                            // Prefer authoritative detailed progress object when present.
+                            const rawPrevProgress = safeUserProgress?.moduleProgress?.[prevModule.id] ??
+                              safeUserProgress?.moduleProgress?.[prevEnhancedModuleId] ?? null;
+
+                            if (rawPrevProgress && typeof rawPrevProgress === 'object') {
+                              // Compute completed items vs total items for previous module
+                              const completedLessons = Array.isArray(rawPrevProgress.completedLessons) ? rawPrevProgress.completedLessons.length : 0;
+                              const completedExercises = Array.isArray(rawPrevProgress.completedExercises) ? rawPrevProgress.completedExercises.length : 0;
+                              const completedProject = rawPrevProgress.projectCompleted ? 1 : 0;
+
+                              const totalLessons = prevModule.lessons?.length || 0;
+                              const totalExercises = prevModule.handsOnExercises?.length || 0;
+                              const totalProject = prevModule.assessmentProject ? 1 : 0;
+
+                              const totalItems = totalLessons + totalExercises + totalProject;
+                              const completedItems = completedLessons + completedExercises + completedProject;
+
+                              // Require full completion of all items when detailed progress exists
+                              canAccess = totalItems === 0 ? true : completedItems >= totalItems;
+                            } else {
+                              // Fallback: use completedModules flag or numeric progress
+                              const prevProgress = getNumericProgress(prevModule.id);
+                              const isPrevCompleted = (safeUserProgress.completedModules || []).includes(prevModule.id) ||
+                                (safeUserProgress.completedModules || []).includes(prevEnhancedModuleId) ||
+                                prevProgress === 100;
+                              canAccess = isPrevCompleted;
+                            }
                           }
 
                           const progress = getNumericProgress(module.id);
