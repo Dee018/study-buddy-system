@@ -3,6 +3,7 @@ import safeUpsertUserProgress from './supabase/safeProgressUpsert';
 import prepareLessonCompletionsForInsert from './supabase/lessonCompletionsUpsert';
 // Import XPService to create xp_transactions when ProgressSyncManager records completions
 import { XPService } from './supabase/dataService';
+import fetchUserProgress from './fetchUserProgress';
 
 // Small UUID v4 helper used when inserting rows that require explicit ids
 function generateUUIDv4() {
@@ -79,6 +80,7 @@ export class ProgressSyncManager {
     if (!v || typeof v !== 'string') return false;
     return this.uuidRegex.test(v);
   }
+  // Client-side cache removed as authoritative source. Keep Map only for optional transient use (not read as source-of-truth).
   private static cache: Map<string, UserProgress> = new Map();
   private static pending: Map<string, PendingEntry> = new Map();
   private static queue: string[] = [];
@@ -182,7 +184,7 @@ export class ProgressSyncManager {
 
           await this.upsertProgress(userId, entry.progress);
           this.pending.delete(userId);
-          this.cache.set(userId, entry.progress);
+          // Do NOT persist client-side cache as authoritative; notify subscribers that save completed.
           this.notify({ type: 'saved', userId, progress: entry.progress, timestamp: new Date().toISOString() });
         } catch (err) {
           entry.attempts += 1;
@@ -191,10 +193,8 @@ export class ProgressSyncManager {
             await new Promise(r => setTimeout(r, delay));
             this.queue.push(userId);
           } else {
-            // Persist failed after retries: keep cache so UI shows latest local state,
-            // delete pending entry and emit a failed event plus module-scoped updates
+            // Persist failed after retries: delete pending entry and emit a failed event plus module-scoped updates
             this.pending.delete(userId);
-            this.cache.set(userId, entry.progress);
             this.notify({ type: 'failed', userId, error: String(err), timestamp: new Date().toISOString() });
             try {
               for (const moduleId of Object.keys(entry.progress.moduleProgress || {})) {
@@ -288,133 +288,28 @@ export class ProgressSyncManager {
 
   // Ensure the cache is populated from server and notify subscribers (used on sign-in)
   static async loadProgressAsync(userId: string, opts?: { retries?: number; backoffMs?: number }): Promise<UserProgress> {
-    // Return cached immediately if available
-    if (this.cache.has(userId)) return this.cache.get(userId)!;
-
-    const retries = typeof opts?.retries === 'number' ? opts.retries : 2;
-    const baseBackoff = typeof opts?.backoffMs === 'number' ? opts.backoffMs : 150;
-
-    let attempt = 0;
-    let serverProgress: UserProgress | null = null;
-    let lastError: any = null;
-
-    while (attempt <= retries) {
-      attempt += 1;
-      console.debug(`[ProgressSync] loadProgressAsync attempt ${attempt}/${retries + 1} for user`, userId);
-      try {
-        // Select both JSON progress column AND top-level columns like total_xp, level
-        const { data, error } = await supabase
-          .from('user_progress')
-          .select('user_id, progress, updated_at, total_xp, current_level, modules_completed, lessons_completed, exercises_completed, projects_completed')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        console.debug('[ProgressSync] supabase query executed for user_progress.maybeSingle', { userId, query: { table: 'user_progress', select: 'user_id, progress, updated_at, total_xp, current_level, ...', filter: `user_id=eq.${userId}` } });
-        console.debug('[ProgressSync] supabase response', { data, error });
-
-        if (error) {
-          lastError = error;
-          const shouldRetry = this.isRetryableError(error) && attempt <= retries;
-          // ProgressLoad attempt GET error (silent)
-          if (shouldRetry) {
-            const wait = baseBackoff * Math.pow(2, attempt - 1);
-            await new Promise((r) => setTimeout(r, wait));
-            continue;
-          }
-          break;
-        }
-
-        if (data) {
-          // server row raw (silent)
-          try {
-            const row: any = data;
-            let p: UserProgress | null = null;
-            if (row.progress) {
-              p = typeof row.progress === 'string' ? JSON.parse(row.progress) : row.progress;
-            } else {
-              // Only use guaranteed columns from the row; do not reference columns that may not exist.
-              p = {
-                lastUpdated: row.updated_at || new Date().toISOString(),
-                moduleProgress: {},
-                completedModules: [],
-                assessments: [],
-                dailyActivity: {},
-              } as UserProgress;
-            }
-
-            p.dailyActivity = p.dailyActivity || {};
-            // Ensure moduleProgress and other aggregates exist to avoid undefined access
-            p.moduleProgress = p.moduleProgress || {};
-            p.completedModules = p.completedModules || [];
-            p.assessments = p.assessments || [];
-            
-            // Use top-level columns from database as authoritative source
-            // These are the actual values stored in separate columns, not inside the JSON
-            p.total_xp = row.total_xp ?? p.total_xp ?? 0;
-            p.level = row.current_level ?? p.level ?? p.current_level ?? 1;
-            p.lessons_completed = row.lessons_completed ?? p.lessons_completed ?? 0;
-            p.exercises_completed = row.exercises_completed ?? p.exercises_completed ?? 0;
-            p.projects_completed = row.projects_completed ?? p.projects_completed ?? 0;
-            
-            console.log('[ProgressSync] ✅ Applied top-level columns', {
-              userId,
-              total_xp: p.total_xp,
-              level: p.level,
-              source: 'database columns'
-            });
-            
-            for (const [k, v] of Object.entries(p.dailyActivity || {})) {
-              if (v && typeof v === 'object' && !('date' in (v as any))) (v as any).date = k;
-            }
-
-            serverProgress = p;
-            console.debug('[ProgressSync] parsed server progress', { userId, serverProgress });
-          } catch (parseErr) {
-            lastError = parseErr;
-            console.error('[ProgressSync] failed to parse server progress for user', userId, parseErr);
-          }
-        }
-
-        break;
-      } catch (err) {
-        lastError = err;
-        const shouldRetry = this.isRetryableError(err) && attempt <= retries;
-        // ProgressLoad attempt exception (silent)
-        if (shouldRetry) {
-          const wait = baseBackoff * Math.pow(2, attempt - 1);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-        break;
-      }
-    }
-
-    if (!serverProgress && lastError) {
-      // server GET failed, falling back to local cache for user (silent)
-    }
-
-    // Do NOT merge local cache into server progress: Supabase is authoritative.
-    // Ensure we always return a usable progress object (never null) so callers
-    // can safely read `.moduleProgress` and `.completedModules` without checks.
-    const merged: UserProgress = serverProgress || { moduleProgress: {}, completedModules: [], assessments: [], dailyActivity: {} } as UserProgress;
-
-    console.debug('[ProgressSync] final merged progress (server-priority)', { userId, merged });
-
-    // Recompute aggregates and cache + notify listeners
-    try { this.recomputeAggregates(merged); } catch (e) { /* no-op */ }
-    this.cache.set(userId, merged);
-    // cached merged progress for user
-    console.debug('[ProgressSync] cached progress set for user', userId);
-    this.notify({ type: 'local-update', userId, progress: merged, timestamp: new Date().toISOString() });
+    // Always fetch authoritative progress from Supabase via the fetch helper
     try {
-      for (const moduleId of Object.keys(merged.moduleProgress || {})) {
-        this.notify({ type: 'progress-updated', userId, moduleId, progress: merged, timestamp: new Date().toISOString() });
-      }
-    } catch (e) { /* ignore notify errors */ }
-
-    // returning merged progress
-    console.debug('[ProgressSync] loadProgressAsync returning for user', userId);
-    return merged;
+      const merged = await fetchUserProgress(userId);
+      try { this.recomputeAggregates(merged); } catch { /* no-op */ }
+      // Do NOT persist client-side cache as authoritative; keep transient only
+      // Do not persist an authoritative client-side cache; Supabase is source-of-truth.
+      // Keep a transient snapshot only for debugging, do not rely on it for reads.
+      try { this.cache.set(userId, merged); } catch { }
+      this.notify({ type: 'local-update', userId, progress: merged, timestamp: new Date().toISOString() });
+      try {
+        for (const moduleId of Object.keys(merged.moduleProgress || {})) {
+          this.notify({ type: 'progress-updated', userId, moduleId, progress: merged, timestamp: new Date().toISOString() });
+        }
+      } catch (e) { /* ignore notify errors */ }
+      return merged;
+    } catch (e) {
+      console.warn('[ProgressSync] loadProgressAsync fetchUserProgress failed', e);
+      const fallback = { moduleProgress: {}, completedModules: [], assessments: [], dailyActivity: {} } as UserProgress;
+      try { this.recomputeAggregates(fallback); } catch { }
+      this.notify({ type: 'local-update', userId, progress: fallback, timestamp: new Date().toISOString() });
+      return fallback;
+    }
   }
 
   // Ensure the cache is populated from server and notify subscribers (used on sign-in)
@@ -449,7 +344,8 @@ export class ProgressSyncManager {
       return p;
     } catch (e) {
       const fallback = { moduleProgress: {}, completedModules: [], assessments: [] } as UserProgress;
-      this.cache.set(userId, fallback);
+      // Do not persist fallback in client cache; return empty fallback instead.
+      try { this.cache.delete(userId); } catch { }
       this.notify({ type: 'saved', userId, progress: fallback, timestamp: new Date().toISOString() });
       try {
         for (const moduleId of Object.keys(fallback.moduleProgress || {})) {
@@ -627,7 +523,12 @@ export class ProgressSyncManager {
       // completion recorded (no debug logging)
     }
 
-    return p;
+    try {
+      const refreshed = await this.loadProgressAsync(userId);
+      return refreshed;
+    } catch (e) {
+      return p;
+    }
   }
 
   static async completeExercise(userId: string, moduleId: string, exerciseId: string, xpEarned?: number, submittedCode?: string): Promise<UserProgress> {
@@ -711,7 +612,12 @@ export class ProgressSyncManager {
       // exercise completion recorded (no debug logging)
     }
 
-    return p;
+    try {
+      const refreshed = await this.loadProgressAsync(userId);
+      return refreshed;
+    } catch (e) {
+      return p;
+    }
   }
 
 
@@ -787,7 +693,12 @@ export class ProgressSyncManager {
       }
     } catch (e) { /* ignore */ }
 
-    return p;
+    try {
+      const refreshed = await this.loadProgressAsync(userId);
+      return refreshed;
+    } catch (e) {
+      return p;
+    }
   }
 
   static async recordAssessment(userId: string, assessmentId: string, moduleId: string, score: number, maxScore: number, topics: { [topic: string]: number } = {}, studyTimeMinutes = 0): Promise<UserProgress> {
@@ -1165,7 +1076,8 @@ export class ProgressSyncManager {
   static async saveProgressAsync(userId: string, progress: UserProgress) {
     progress.lastUpdated = this.nowISO();
     this.recomputeAggregates(progress);
-    this.cache.set(userId, progress);
+    // Transient snapshot only; do not treat as authoritative cache.
+    try { this.cache.set(userId, progress); } catch { }
     this.notify({ type: 'local-update', userId, progress, timestamp: new Date().toISOString() });
     this.enqueue(userId, progress);
   }
