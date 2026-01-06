@@ -704,8 +704,16 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
           sessionStorage.setItem('sb_post_reload_nav', JSON.stringify({ screen: 'learning', navigationData: { moduleId: selectedModule.id, activeLessonId: activeLesson.id, activeTab: 'lessons' } }));
         } catch (e) { /* ignore */ }
 
-        // Mark lesson as completed using ProgressSyncManager with XP
-        ProgressSyncManager.completeLesson(userId, selectedModule.id, activeLesson.id, totalXP);
+        // Mark lesson as completed and award XP via ProgressContext so server
+        // `xp_transactions` and `user_progress.total_xp` are updated. Fall back
+        // to ProgressSyncManager if the context call fails.
+        try {
+          await progressContext.completeLesson(selectedModule.id, activeLesson.id, totalXP);
+        } catch (e) {
+          console.warn('handleQuizSubmit: progressContext.completeLesson failed', e);
+          // Fallback to local sync manager to at least record progress locally
+          void ProgressSyncManager.completeLesson(userId, selectedModule.id, activeLesson.id, totalXP);
+        }
         // Progress will auto-refresh via the sync hook
         triggerRefreshProgress();
 
@@ -1131,7 +1139,12 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
           } catch (e) { /* ignore */ }
 
           // Mark lesson as completed with XP using ProgressSyncManager
-          ProgressSyncManager.completeLesson(userId, selectedEnhancedModule.id, activeDetailedLesson.id, xpEarned);
+          try {
+            await progressContext.completeLesson(selectedEnhancedModule.id, activeDetailedLesson.id, xpEarned);
+          } catch (e) {
+            console.warn('lesson completion fallback: progressContext.completeLesson failed', e);
+            void ProgressSyncManager.completeLesson(userId, selectedEnhancedModule.id, activeDetailedLesson.id, xpEarned);
+          }
           // Progress will auto-refresh via the sync hook
           triggerRefreshProgress();
 
