@@ -23,6 +23,18 @@ async function safeParseBody(body: any) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<SuccessBody | ErrorBody>) {
+  // Basic CORS support: allow requests from configured origin(s)
+  const requestOrigin = (req.headers.origin as string) || '';
+  const allowed = process.env.ALLOWED_ORIGIN || '*';
+  const allowOrigin = allowed === '*' ? '*' : (allowed.split(',').map(s => s.trim()).includes(requestOrigin) ? requestOrigin : allowed);
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
