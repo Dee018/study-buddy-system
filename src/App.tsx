@@ -279,16 +279,35 @@ export default function App() {
   // Listen for immediate XP awards emitted by ProgressSyncManager to show
   // XP popups without a full page reload. Event detail: { userId, xp, sourceType, sourceId, title? }
   useEffect(() => {
-    const handler = (ev: Event) => {
+    const handler = async (ev: Event) => {
       try {
         const d = (ev as CustomEvent).detail || {};
         const points = Number(d.xp || d.points || 0) || 0;
         const title = d.title || (d.sourceType ? `+${points} XP` : 'XP Earned');
         const uid = d.userId;
 
-        // Do not mutate userData.points; ProgressContext handles authoritative XP
+        // Fetch fresh XP from database when xpAwarded fires
         if (uid && userData && userData.id === uid) {
-          refreshUserPoints();
+          try {
+            const { data, error } = await supabase
+              .from('user_progress')
+              .select('total_xp')
+              .eq('user_id', uid)
+              .maybeSingle();
+            
+            if (!error && data) {
+              const newXP = data.total_xp ?? 0;
+              console.log('[App] xpAwarded: Fetched fresh totalXP from database:', newXP);
+              setUserData(prev => {
+                if (!prev) return prev;
+                return { ...prev, points: newXP };
+              });
+            }
+          } catch (fetchErr) {
+            console.error('[App] Failed to fetch fresh XP from database:', fetchErr);
+            // Fallback to refreshUserPoints if database fetch fails
+            refreshUserPoints();
+          }
         }
 
         const uniqueKey = `${uid || 'anon'}_${title.replace(/\s+/g, '_')}_${Date.now()}`;
