@@ -688,6 +688,39 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     console.log('[ProgressContext] 📊 totalXP state changed:', totalXP);
   }, [totalXP]);
 
+  // Listen for xpAwarded events to refresh totalXP from database
+  React.useEffect(() => {
+    const handleXpAwarded = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { userId } = customEvent.detail || {};
+      
+      if (userId === user?.id) {
+        console.log('[ProgressContext] 🎯 xpAwarded event - refreshing totalXP from database');
+        try {
+          // Fetch fresh total_xp from database
+          const { data, error } = await supabase
+            .from('user_progress')
+            .select('total_xp')
+            .eq('user_id', userId)
+            .maybeSingle();
+          
+          if (!error && data) {
+            const newTotalXP = data.total_xp ?? 0;
+            console.log('[ProgressContext] ✅ Updated totalXP from', totalXP, 'to', newTotalXP);
+            setTotalXP(newTotalXP);
+          }
+        } catch (err) {
+          console.error('[ProgressContext] Failed to refresh totalXP:', err);
+        }
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('xpAwarded', handleXpAwarded as EventListener);
+      return () => window.removeEventListener('xpAwarded', handleXpAwarded as EventListener);
+    }
+  }, [user?.id, totalXP]);
+
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }
 
