@@ -103,6 +103,41 @@ export default function App() {
     uniqueKey: undefined
   });
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  // useProgress is only valid when App is rendered inside AppProviders (it is),
+  // but guard to avoid fatal errors in tests.
+  let progressContext: any = null;
+  try {
+    progressContext = useProgress();
+  } catch (e) {
+    progressContext = null;
+  }
+
+  // Keep a small helper to refresh top-level userData.points from progressContext
+  const refreshUserPoints = useCallback(() => {
+    try {
+      // Use progressContext as the source of truth for XP
+      if (!progressContext) {
+        console.debug('[App] refreshUserPoints: No progressContext available');
+        return;
+      }
+      const actualPoints = Number(progressContext.totalXP || 0);
+      if (typeof actualPoints !== 'number' || !isFinite(actualPoints)) {
+        console.error('Invalid points from progressContext:', actualPoints);
+        return;
+      }
+      console.debug('[App] refreshUserPoints: Updating to', actualPoints);
+      setUserData(prevUserData => {
+        if (!prevUserData) return prevUserData;
+        return {
+          ...prevUserData,
+          points: actualPoints
+        };
+      });
+    } catch (error) {
+      console.error('Error refreshing user points:', error);
+    }
+  }, [progressContext]);
+
   // Callbacks that must run on every render (declared unconditionally to satisfy Rules of Hooks)
   const handleUserLevelUp = useCallback((newLevel: string) => {
     try {
@@ -144,31 +179,6 @@ export default function App() {
     }
   }, [userData, refreshUserPoints]);
 
-  const refreshUserPoints = useCallback(() => {
-    try {
-      // Use progressContext as the source of truth for XP
-      if (!progressContext) {
-        console.debug('[App] refreshUserPoints: No progressContext available');
-        return;
-      }
-      const actualPoints = Number(progressContext.totalXP || 0);
-      if (typeof actualPoints !== 'number' || !isFinite(actualPoints)) {
-        console.error('Invalid points from progressContext:', actualPoints);
-        return;
-      }
-      console.debug('[App] refreshUserPoints: Updating to', actualPoints);
-      setUserData(prevUserData => {
-        if (!prevUserData) return prevUserData;
-        return {
-          ...prevUserData,
-          points: actualPoints
-        };
-      });
-    } catch (error) {
-      console.error('Error refreshing user points:', error);
-    }
-  }, [progressContext]);
-
   // Sync progress context totals into top-level `userData` so legacy components
   // that read `userData.points` or `userData.level` show fresh values.
   try {
@@ -179,14 +189,7 @@ export default function App() {
     // ignore
   }
 
-  // useProgress is only valid when App is rendered inside AppProviders (it is),
-  // but guard to avoid fatal errors in tests.
-  let progressContext: any = null;
-  try {
-    progressContext = useProgress();
-  } catch (e) {
-    progressContext = null;
-  }
+  
 
   // Map numeric level values (from XP calc / progress) to the string labels
   // used across the UI ('Beginner' | 'Learner' | 'Advanced'). This keeps
