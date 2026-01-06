@@ -348,6 +348,43 @@ export function LearningHub({ onNavigate, userLevel, userPoints = 0, username = 
   const safeUserProgress = userProgress || { completedModules: [], moduleProgress: {} };
   const _unlockedModules = getUnlockedModules(userLevel, safeUserProgress);
 
+  // Temporary debug: when URL contains ?debugProgress=1, render a fixed panel
+  // with the full safeUserProgress JSON so it can be copied without using DevTools.
+  const showDebugProgress = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debugProgress');
+  React.useEffect(() => {
+    if (!showDebugProgress) return;
+    try {
+      let pre = document.getElementById('sb-debug-progress') as HTMLPreElement | null;
+      if (!pre) {
+        pre = document.createElement('pre');
+        pre.id = 'sb-debug-progress';
+        pre.style.position = 'fixed';
+        pre.style.right = '10px';
+        pre.style.bottom = '10px';
+        pre.style.maxHeight = '50%';
+        pre.style.width = '420px';
+        pre.style.overflow = 'auto';
+        pre.style.background = 'rgba(0,0,0,0.85)';
+        pre.style.color = '#fff';
+        pre.style.zIndex = '9999';
+        pre.style.padding = '8px';
+        pre.style.fontSize = '11px';
+        pre.style.borderRadius = '6px';
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-word';
+      }
+      pre.textContent = JSON.stringify(safeUserProgress, null, 2);
+      document.body.appendChild(pre);
+
+      return () => {
+        const el = document.getElementById('sb-debug-progress');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      };
+    } catch (e) {
+      // ignore
+    }
+  }, [showDebugProgress, safeUserProgress]);
+
   // Build modulesByCategory from ContentManager.getAllModules() to ensure we use the
   // consolidated visible curriculum (modules 1-8) and avoid mixing different data sources.
   const allVisibleModules = ContentManager.getAllModules().filter(m => m.week >= 1 && m.week <= 8 && ContentManager.isPublished(m.id) && !(m as any).isDeleted);
