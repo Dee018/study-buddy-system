@@ -486,13 +486,25 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       // Update streak
       await updateStreak();
 
-      // Refresh module progress
-      const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
-      if (updatedModuleProgress) {
-        setModuleProgress(prev => ({
-          ...prev,
-          [moduleId]: updatedModuleProgress,
-        }));
+      // Refresh authoritative merged progress (includes per-item completed arrays)
+      try {
+        const merged = await ProgressSyncManager.loadProgressAsync(user.id);
+        if (merged) {
+          setUserProgress(merged as any);
+          setModuleProgress(merged.moduleProgress || {} as any);
+          setDailyActivity(merged.dailyActivity ? Object.values(merged.dailyActivity) : []);
+          setTotalXP((merged as any).total_xp ?? totalXP);
+          setLevel((merged as any).level ?? level);
+        }
+      } catch (e) {
+        // Fallback: update module counters only
+        const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
+        if (updatedModuleProgress) {
+          setModuleProgress(prev => ({
+            ...prev,
+            [moduleId]: updatedModuleProgress,
+          }));
+        }
       }
 
     } catch (err) {
@@ -534,13 +546,24 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       // Update streak
       await updateStreak();
 
-      // Refresh module progress
-      const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
-      if (updatedModuleProgress) {
-        setModuleProgress(prev => ({
-          ...prev,
-          [moduleId]: updatedModuleProgress,
-        }));
+      // Refresh authoritative merged progress (includes per-item completed arrays)
+      try {
+        const merged = await ProgressSyncManager.loadProgressAsync(user.id);
+        if (merged) {
+          setUserProgress(merged as any);
+          setModuleProgress(merged.moduleProgress || {} as any);
+          setDailyActivity(merged.dailyActivity ? Object.values(merged.dailyActivity) : []);
+          setTotalXP((merged as any).total_xp ?? totalXP);
+          setLevel((merged as any).level ?? level);
+        }
+      } catch (e) {
+        const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
+        if (updatedModuleProgress) {
+          setModuleProgress(prev => ({
+            ...prev,
+            [moduleId]: updatedModuleProgress,
+          }));
+        }
       }
 
     } catch (err) {
@@ -582,13 +605,24 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       // Update streak
       await updateStreak();
 
-      // Refresh module progress
-      const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
-      if (updatedModuleProgress) {
-        setModuleProgress(prev => ({
-          ...prev,
-          [moduleId]: updatedModuleProgress,
-        }));
+      // Refresh authoritative merged progress (includes per-item completed arrays)
+      try {
+        const merged = await ProgressSyncManager.loadProgressAsync(user.id);
+        if (merged) {
+          setUserProgress(merged as any);
+          setModuleProgress(merged.moduleProgress || {} as any);
+          setDailyActivity(merged.dailyActivity ? Object.values(merged.dailyActivity) : []);
+          setTotalXP((merged as any).total_xp ?? totalXP);
+          setLevel((merged as any).level ?? level);
+        }
+      } catch (e) {
+        const updatedModuleProgress = await ProgressService.getModuleProgress(user.id, moduleId);
+        if (updatedModuleProgress) {
+          setModuleProgress(prev => ({
+            ...prev,
+            [moduleId]: updatedModuleProgress,
+          }));
+        }
       }
 
     } catch (err) {
