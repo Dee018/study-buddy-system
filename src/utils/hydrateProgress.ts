@@ -1,4 +1,4 @@
-import supabase from './supabase/client';
+import { supabase } from './supabase/client';
 import { UserProgress, ModuleDetailedProgress } from './progressSyncManager';
 
 type LessonRow = { module_id: string; lesson_id: string; xp_earned?: number; completed_at?: string; lesson_title?: string };
