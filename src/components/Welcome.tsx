@@ -365,7 +365,9 @@ export function Welcome({ onComplete }: WelcomeProps) {
       // 3️⃣ Sign up user and create profile/progress internally
       let user: any = null;
       try {
-        const res = await AuthService.signUp(signupEmail, signupPassword, signupUsername, recoveryCode);
+        // Convert username to lowercase before sending to database
+        const normalizedUsername = signupUsername.toLowerCase();
+        const res = await AuthService.signUp(signupEmail, signupPassword, normalizedUsername, recoveryCode);
         user = res?.user ?? null;
       } catch (err: any) {
         const msg = String(err?.message || err || 'An unexpected error occurred. Please try again.');
