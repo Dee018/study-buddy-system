@@ -999,7 +999,12 @@ export class ProgressSyncManager {
   // Returns a snapshot of progress for UI/hooks
   static getProgressSnapshot(userId: string) {
     const p = this.cache.get(userId) || ({ moduleProgress: {}, completedModules: [] } as UserProgress);
-    const totalXP = Object.values(p.dailyActivity || {}).reduce((s: number, d: any) => s + (d?.totalXP || 0), 0);
+    // Prefer the authoritative top-level `total_xp` column when present on the
+    // cached progress object (server-provided). Fallback to summing dailyActivity
+    // only for legacy or partial progress objects that don't include `total_xp`.
+    const totalXP = (typeof p.total_xp === 'number' && Number.isFinite(p.total_xp))
+      ? p.total_xp
+      : Object.values(p.dailyActivity || {}).reduce((s: number, d: any) => s + (d?.totalXP || 0), 0);
 
     const completedLessons: { [moduleId: string]: string[] } = {};
     const completedExercises: { [moduleId: string]: string[] } = {};
