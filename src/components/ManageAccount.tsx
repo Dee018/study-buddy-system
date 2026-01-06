@@ -354,7 +354,7 @@ export function ManageAccount({ onBack }: ManageAccountProps) {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteAccount} className="bg-red-600 hover:bg-red-700 text-white">Yes, Delete My Account</AlertDialogAction>
+                          <AlertDialogAction onClick={handleDeleteAccount} className="text-red-600 hover:text-red-700">Yes, Delete My Account</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
