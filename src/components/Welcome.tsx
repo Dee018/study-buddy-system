@@ -362,24 +362,23 @@ export function Welcome({ onComplete }: WelcomeProps) {
         // Map server errors to friendly UI messages
         if (msg.includes('Username already taken')) {
           setSignupUsernameError('Username already taken');
-        } else if (msg.includes('Email already registered') || msg.includes('already registered')) {
-          setSignupUsernameError('User already registered');
-        } else {
-          setSignupUsernameError(msg);
-        }
-
-        // Re-check username availability against server to ensure UI reflects truth
-        try {
-          setIsCheckingUsername(true);
-          const serverTaken = await AuthService.usernameExists(signupUsername);
-          setUsernameAvailable(!serverTaken);
-          if (serverTaken) {
-            setSuggestedUsernames(generateUsernameSuggestions(signupUsername));
+          // Re-check username availability against server to ensure UI reflects truth
+          try {
+            setIsCheckingUsername(true);
+            const serverTaken = await AuthService.usernameExists(signupUsername);
+            setUsernameAvailable(!serverTaken);
+            if (serverTaken) {
+              setSuggestedUsernames(generateUsernameSuggestions(signupUsername));
+            }
+          } catch (probeErr) {
+            // ignore probe failures; leave availability state as-is
+          } finally {
+            setIsCheckingUsername(false);
           }
-        } catch (probeErr) {
-          // ignore probe failures; leave availability state as-is
-        } finally {
-          setIsCheckingUsername(false);
+        } else if (msg.includes('Email already registered') || msg.includes('already registered') || msg.includes('User already registered')) {
+          setSignupEmailError('Email already registered');
+        } else {
+          setSignupEmailError(msg);
         }
 
         return;
@@ -407,6 +406,18 @@ export function Welcome({ onComplete }: WelcomeProps) {
       setNewUserCode(recoveryCode);
       setNewUsername(signupUsername);
       setNewUserEmail(signupEmail);
+      
+      // Clear all form fields and errors after successful signup
+      setSignupEmail('');
+      setSignupUsername('');
+      setSignupPassword('');
+      setSignupConfirmPassword('');
+      setSignupEmailError('');
+      setSignupUsernameError('');
+      setSignupPasswordError('');
+      setUsernameAvailable(null);
+      setSuggestedUsernames([]);
+      
       setStep('new-account-info');
 
     } catch (error: any) {
@@ -415,21 +426,21 @@ export function Welcome({ onComplete }: WelcomeProps) {
       const msg = String(error?.message || error || 'An unexpected error occurred. Please try again.');
       if (/Username already taken/i.test(msg)) {
         setSignupUsernameError('Username already taken');
+        // Ensure availability UI is accurate after unexpected errors
+        try {
+          setIsCheckingUsername(true);
+          const serverTaken = await AuthService.usernameExists(signupUsername);
+          setUsernameAvailable(!serverTaken);
+          if (serverTaken) setSuggestedUsernames(generateUsernameSuggestions(signupUsername));
+        } catch (e) {
+          // ignore
+        } finally {
+          setIsCheckingUsername(false);
+        }
       } else if (error?.name === 'AuthApiError' || error?.status === 422 || /User already registered/i.test(msg) || /Email already registered/i.test(msg)) {
-        setSignupUsernameError('User already registered');
+        setSignupEmailError('Email already registered');
       } else {
-        setSignupUsernameError(msg);
-      }
-      // Ensure availability UI is accurate after unexpected errors
-      try {
-        setIsCheckingUsername(true);
-        const serverTaken = await AuthService.usernameExists(signupUsername);
-        setUsernameAvailable(!serverTaken);
-        if (serverTaken) setSuggestedUsernames(generateUsernameSuggestions(signupUsername));
-      } catch (e) {
-        // ignore
-      } finally {
-        setIsCheckingUsername(false);
+        setSignupEmailError(msg);
       }
     } finally {
       setIsSignupLoading(false);

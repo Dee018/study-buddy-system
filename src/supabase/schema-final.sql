@@ -1473,6 +1473,40 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
+-- USER CLEANUP TRIGGER
+-- ============================================================================
+-- Automatically clean up all user data when deleted from user_profiles
+
+CREATE OR REPLACE FUNCTION public.cleanup_deleted_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RAISE NOTICE 'Auto-cleanup triggered for user: % (%), email: %', OLD.username, OLD.id, OLD.email;
+  
+  -- Delete from auth.users (master table)
+  DELETE FROM auth.users WHERE id = OLD.id;
+  
+  -- Clean up username mapping table
+  DELETE FROM public.user_accounts WHERE user_id = OLD.id OR LOWER(user_code) = LOWER(OLD.username);
+  
+  -- Clean up deleted_users audit table (allows immediate re-registration)
+  DELETE FROM public.deleted_users WHERE user_id = OLD.id OR LOWER(email) = LOWER(OLD.email) OR LOWER(username) = LOWER(OLD.username);
+  
+  RAISE NOTICE 'Complete cleanup finished for user: %', OLD.username;
+  
+  RETURN OLD;
+END;
+$$;
+
+CREATE TRIGGER trigger_cleanup_deleted_user
+  BEFORE DELETE ON public.user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.cleanup_deleted_user();
+
+-- ============================================================================
 -- APPLY TRIGGERS
 -- ============================================================================
 
