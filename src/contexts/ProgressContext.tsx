@@ -695,22 +695,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       const { userId } = customEvent.detail || {};
       
       if (userId === user?.id) {
-        console.log('[ProgressContext] 🎯 xpAwarded event - refreshing totalXP from database');
+        console.log('[ProgressContext] 🎯 xpAwarded event received - reloading progress');
         try {
-          // Fetch fresh total_xp from database
-          const { data, error } = await supabase
-            .from('user_progress')
-            .select('total_xp')
-            .eq('user_id', userId)
-            .maybeSingle();
-          
-          if (!error && data) {
-            const newTotalXP = data.total_xp ?? 0;
-            console.log('[ProgressContext] ✅ Updated totalXP from', totalXP, 'to', newTotalXP);
-            setTotalXP(newTotalXP);
-          }
+          // Force reload all progress data from database
+          await loadAllProgressData();
+          console.log('[ProgressContext] ✅ Progress reloaded after xpAwarded');
         } catch (err) {
-          console.error('[ProgressContext] Failed to refresh totalXP:', err);
+          console.error('[ProgressContext] Failed to reload progress after xpAwarded:', err);
         }
       }
     };
@@ -719,7 +710,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       window.addEventListener('xpAwarded', handleXpAwarded as EventListener);
       return () => window.removeEventListener('xpAwarded', handleXpAwarded as EventListener);
     }
-  }, [user?.id, totalXP]);
+  }, [user?.id, loadAllProgressData]);
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }
