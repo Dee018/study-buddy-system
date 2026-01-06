@@ -504,6 +504,23 @@ export class ProgressSyncManager {
   // ---------------------
   static async completeLesson(userId: string, moduleId: string, lessonId: string, xpEarned?: number): Promise<UserProgress> {
     const p = await this.loadProgressAsync(userId);
+    // Idempotency guard: ensure we don't award XP or mutate state if the
+    // lesson is already recorded server-side. This covers callers that may
+    // invoke both server-side and client-side completion paths.
+    try {
+      const check = await supabase
+        .from('lesson_completions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+      if (check && check.data) {
+        // Refresh authoritative server progress into cache and return it
+        try { const refreshed = await this.loadProgressAsync(userId); return refreshed; } catch { return p; }
+      }
+    } catch (e) {
+      // If the check fails, fall through and continue with local completion.
+    }
     const raw = p.moduleProgress[moduleId];
     const mod = this.normalizeModuleProgress(raw as any);
     if (!Array.isArray(mod.completedLessons)) mod.completedLessons = [];
