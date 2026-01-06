@@ -143,11 +143,11 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Page Content */}
       <div className="flex-1">
-        <div className="container mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-16">
-          <div className="max-w-full sm:max-w-4xl mx-auto space-y-6 sm:space-y-12">
+        <div className="container mx-auto px-4 sm:px-6 md:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
+          <div className="max-w-full sm:max-w-3xl md:max-w-4xl mx-auto space-y-6 sm:space-y-8 md:space-y-12 px-2 sm:px-0">
 
             {/* Title */}
-            <div className="text-center space-y-4 px-4">
+            <div className="text-center space-y-3 px-2 sm:px-4">
               <h1>Help Center</h1>
               <p className="text-muted-foreground max-w-2xl mx-auto">
                 Find answers to common questions about using Study Buddy
@@ -173,13 +173,13 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
                       return (
                         <Card
                           key={itemId}
-                          className="border-2 border-primary/20 bg-gradient-to-br from-purple-500/5 via-primary/5 to-accent/3 hover:shadow-lg hover:border-primary/30 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
+                          className="w-full border-2 border-primary/20 bg-gradient-to-br from-purple-500/5 via-primary/5 to-accent/3 hover:shadow-lg hover:border-primary/30 hover:scale-[1.02] transition-all duration-300 cursor-pointer"
                           onClick={() => toggleItem(itemId)}
                           style={{ borderRadius: '16px' }}
                         >
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
-                              <CardTitle className="text-base pr-4">
+                              <CardTitle className="text-base pr-4 break-words max-w-full">
                                 {faq.question}
                               </CardTitle>
                               {isExpanded ? (
@@ -190,7 +190,7 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
                             </div>
                           </CardHeader>
                           {isExpanded && (
-                            <CardContent className="pt-0">
+                            <CardContent className="pt-0 p-4 sm:p-6 md:p-8">
                               <p className="text-sm text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
                                 {faq.answer}
                               </p>
@@ -205,8 +205,8 @@ export function HelpCenter({ onNavigate }: HelpCenterProps) {
             </div>
 
             {/* Contact Support Card */}
-            <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-              <CardContent className="p-6 sm:p-8 text-center space-y-4">
+            <Card className="w-full border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5">
+              <CardContent className="p-4 sm:p-6 md:p-8 text-center space-y-4">
                 <h3 className="text-xl">Still need help?</h3>
                 <p className="text-muted-foreground">
                   If you couldn't find the answer you're looking for, feel free to contact our support team or report an issue.
